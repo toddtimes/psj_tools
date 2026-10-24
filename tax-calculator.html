@@ -1,6 +1,11 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
 <title>Profit and Tax Totals</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<link rel="stylesheet" href="vendor/fonts/fonts.css">
 <style>
 /* Layout: one back-office sheet. Reports go in at the top, three ruled figures sit under them, ledgers follow. */
 :root {
@@ -49,6 +54,9 @@ h2 { font-family: var(--font-label); font-weight: 600; font-size: 18px; margin: 
 
 button, .btn { font: inherit; font-weight: 500; cursor: pointer; border-radius: 4px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 6px 12px; }
 button:hover, .btn:hover { border-color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button:disabled:hover { border-color: var(--line); }
+.notices:empty, .ledger:empty, .summary-row p:empty { display: none; }
 button:focus-visible, .btn:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn-small { font-size: 13px; padding: 3px 9px; }
@@ -107,10 +115,23 @@ summary { cursor: pointer; padding: 12px 14px; font-weight: 500; }
 .lists-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
 .lists label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 textarea.short { min-height: 84px; }
+
+/* Mailbox rent */
+.rent { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
+.rent label { display: flex; flex-direction: column; gap: 6px; }
+.rent .money-in { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); width: 11em; }
+.rent .money-in:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rent .money-in span { padding-left: 10px; color: var(--muted); font-family: var(--font-num); }
+.rent input { font-family: var(--font-num); font-size: 15px; border: 0; background: transparent; color: var(--ink); padding: 7px 10px 7px 4px; width: 100%; min-width: 0; outline: none; }
+.rent .help { flex: 1 1 280px; }
 textarea { font: inherit; font-size: 14px; line-height: 1.5; width: 100%; min-height: 250px; resize: vertical; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); }
 @media (max-width: 480px) { h1 { font-size: 24px; } .figure .value { font-size: 26px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.disclaimer { margin: 12px 0 0; font-size: 12px; color: var(--muted); max-width: 80ch; }
+.disclaimer a { color: inherit; }
 </style>
+</head>
+<body>
 
 <main class="wrap">
   <header>
@@ -128,6 +149,13 @@ textarea { font: inherit; font-size: 14px; line-height: 1.5; width: 100%; min-he
       <div class="slot empty" id="slot-profit"></div>
       <div class="slot empty" id="slot-tax"></div>
     </div>
+  </section>
+
+  <section class="rent" aria-label="Mailbox rent">
+    <label for="mailbox-rent"><span class="label">Monthly mailbox cost</span>
+      <span class="money-in"><span aria-hidden="true">$</span><input id="mailbox-rent" type="text" inputmode="decimal" placeholder="0.00" autocomplete="off"></span>
+    </label>
+    <p class="help">What your mailboxes cost you each month, such as the rent for that space. It is multiplied by the months the Profit Report covers and taken off Mailbox Rentals profit. Leave it blank to skip. Saved in this browser.</p>
   </section>
 
   <div class="notices" id="notices" aria-live="polite"></div>
@@ -174,10 +202,15 @@ textarea { font: inherit; font-size: 14px; line-height: 1.5; width: 100%; min-he
       <div><button type="button" id="reset-lists">Reset lists and base costs</button></div>
     </div>
   </details>
+
+  <p class="disclaimer">Provided free and as-is, with no warranty of any kind. These tools read PostalMate reports in your browser; always check the results against the original reports before relying on them for USPS, tax or other filings. <a href="./">All tools</a></p>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script type="module">
+import * as pdfjsLib from './vendor/pdfjs/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.min.mjs';
+window.pdfjsLib = pdfjsLib;
+</script>
 <script>
 (function () {
   'use strict';
@@ -197,7 +230,9 @@ textarea { font: inherit; font-size: 14px; line-height: 1.5; width: 100%; min-he
     ? savedLists : { retail: DEFAULT_RETAIL.slice(), services: DEFAULT_SERVICES.slice() };
 
   /* A base cost is a fixed monthly cost the report does not know about, such as rent behind Mailbox Rentals. */
-  const DEFAULT_COSTS = [{ name: 'Mailbox Rentals', monthly: 2120 }];
+  const DEFAULT_COSTS = [];
+  /* The mailbox cost field above the totals is a shortcut for this department's base cost. */
+  const RENT_DEPT = 'Mailbox Rentals';
   const cloneCosts = list => list.map(c => ({ name: c.name, monthly: c.monthly }));
   const savedCosts = store.get('ptt.costs.v1', null);
   let baseCosts = Array.isArray(savedCosts) ? savedCosts.filter(c => c && c.name && c.monthly > 0) : cloneCosts(DEFAULT_COSTS);
@@ -243,7 +278,6 @@ textarea { font: inherit; font-size: 14px; line-height: 1.5; width: 100%; min-he
 
   async function readPdf(file) {
     if (!window.pdfjsLib) throw new Error('The PDF reader did not load. Reload the page and try again.');
-    try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; } catch (e) { /* main-thread reader is already loaded */ }
     const data = new Uint8Array(await file.arrayBuffer());
     const doc = await window.pdfjsLib.getDocument({ data }).promise;
     const pages = [];
@@ -472,7 +506,6 @@ textarea { font: inherit; font-size: 14px; line-height: 1.5; width: 100%; min-he
   function render() {
     const notices = [];
     state.errors.forEach(e => notices.push({ cls: 'error', html: esc(e) }));
-    if (state.sample) notices.push({ cls: 'info', html: 'Showing the two Q4 2025 reports this was built from. Add new reports to replace them.' });
 
     $('slot-profit').className = 'slot ' + (state.profit ? 'ready' : 'empty');
     $('slot-profit').innerHTML = slotHtml('profit', state.profit);
@@ -614,7 +647,21 @@ textarea { font: inherit; font-size: 14px; line-height: 1.5; width: 100%; min-he
     taRetail.value = lists.retail.join('\n');
     taServices.value = lists.services.join('\n');
     taCosts.value = baseCosts.map(c => c.name + ': ' + c.monthly).join('\n');
+    fillRent();
   };
+  const rentInput = $('mailbox-rent');
+  const fillRent = () => {
+    const c = baseCosts.find(c => norm(c.name) === norm(RENT_DEPT));
+    rentInput.value = c ? String(c.monthly) : '';
+  };
+  rentInput.addEventListener('input', () => {
+    const v = parseFloat(rentInput.value.replace(/[$,\s]/g, ''));
+    baseCosts = baseCosts.filter(c => norm(c.name) !== norm(RENT_DEPT));
+    if (v > 0) baseCosts.push({ name: RENT_DEPT, monthly: v });
+    store.set('ptt.costs.v1', baseCosts);
+    taCosts.value = baseCosts.map(c => c.name + ': ' + c.monthly).join('\n');
+    render();
+  });
   const readLists = () => {
     const parse = v => v.split('\n').map(s => s.trim()).filter(Boolean);
     lists = { retail: parse(taRetail.value), services: parse(taServices.value) };
@@ -624,6 +671,7 @@ textarea { font: inherit; font-size: 14px; line-height: 1.5; width: 100%; min-he
     }).filter(c => c && c.monthly > 0);
     store.set('ptt.lists.v2', lists);
     store.set('ptt.costs.v1', baseCosts);
+    fillRent();
     render();
   };
   taRetail.addEventListener('input', readLists);
@@ -644,4 +692,5 @@ textarea { font: inherit; font-size: 14px; line-height: 1.5; width: 100%; min-he
 })();
 </script>
 
-</body></html>
+</body>
+</html>

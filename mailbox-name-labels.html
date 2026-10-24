@@ -1,9 +1,11 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
 <title>Mailbox Name Labels</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="vendor/fonts/fonts.css">
 <style>
 /* Layout: two-pane counter tool. The box picker (left) feeds a live proof of the label sheets (right); stacks to one column on a phone. */
 :root {
@@ -211,7 +213,10 @@ details.align summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 
 /* Printing the page prints only the label sheets, one per Letter page, at actual size. */
 @page { size: letter portrait; margin: 0; }
+.disclaimer { margin: 20px 0 0; font-size: 12px; color: var(--ink-2); max-width: 80ch; }
+.disclaimer a { color: inherit; }
 @media print {
+  .disclaimer { display: none !important; }
   html, body { background: #ffffff !important; }
   body { padding: 0 !important; margin: 0 !important; }
   .wrap, .layout, .pane, .sheets { display: block !important; max-width: none; margin: 0; padding: 0; gap: 0; }
@@ -227,6 +232,8 @@ details.align summary { cursor: pointer; font-weight: 600; font-size: 14px; }
   .sheets .sheet .ink { transform: translate(var(--print-ox, 0px), var(--print-oy, 0px)); }
 }
 </style>
+</head>
+<body>
 
 <div class="wrap">
   <header class="masthead">
@@ -328,10 +335,16 @@ details.align summary { cursor: pointer; font-weight: 600; font-size: 14px; }
       <div class="sheets" id="sheets" aria-live="polite"></div>
     </section>
   </div>
+
+  <p class="disclaimer">Provided free and as-is, with no warranty of any kind. These tools read PostalMate reports in your browser; always check the results against the original reports before relying on them for USPS, tax or other filings. <a href="./">All tools</a></p>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="module">
+import * as pdfjsLib from './vendor/pdfjs/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.min.mjs';
+window.pdfjsLib = pdfjsLib;
+</script>
+<script src="vendor/jspdf/jspdf.umd.min.js"></script>
 <script>
 /* Mailbox Name Labels: report parsing and label layout. Pure functions, no DOM. */
 var MNL = (function () {
@@ -704,8 +717,6 @@ var MNL = (function () {
     set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
   };
 
-  if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
   var settings = Object.assign({ showNumber: true, nameStyle: 'report', offX: 0, offY: 0, outlines: false }, store.get('mnl.settings', {}));
   function saveSettings() { store.set('mnl.settings', settings); }
 
@@ -947,10 +958,6 @@ var MNL = (function () {
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
   }
 
-  var downloadsPromise = (window.claude && typeof window.claude.use === 'function')
-    ? window.claude.use('downloads').catch(function () { return null; })
-    : Promise.resolve(null);
-
   function saveStatus(text, isError) {
     var el = $('save-status');
     el.textContent = text;
@@ -962,23 +969,10 @@ var MNL = (function () {
     var built = buildPdf(), blob = built.doc.output('blob');
     var first = built.plan.labels[0].box.nbr, last = built.plan.labels[built.plan.labels.length - 1].box.nbr;
     var filename = 'Mailbox labels ' + (first === last ? first : first + '-' + last) + ' ' + today() + '.pdf';
-    var dl = await downloadsPromise;
-    if (dl) {
-      try {
-        await dl.save({ filename: filename, data: blob });
-        saveStatus('Saved ' + filename + '. Print it at Actual size.');
-      } catch (e) {
-        var code = e && e.code;
-        if (code === 'declined') saveStatus('Not saved.');
-        else if (code === 'rate_limited') saveStatus('A save prompt is already open. Finish that one first.', true);
-        else saveStatus('Saving is not available in this view. Open the page in its own browser tab and try again.', true);
-      }
-      return;
-    }
     var url = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
-    saveStatus('Downloading ' + filename + '. If nothing appears, open this page in its own browser tab.');
+    saveStatus('Downloading ' + filename + '. Print it at Actual size.');
   }
 
   /* ---------- Import ---------- */
@@ -1153,4 +1147,5 @@ var MNL = (function () {
 })();
 </script>
 
-</body></html>
+</body>
+</html>

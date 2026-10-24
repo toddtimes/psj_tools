@@ -1,7 +1,11 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
 <title>CMRA Mailbox Counts</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<link rel="stylesheet" href="vendor/fonts/fonts.css">
 <style>
 /* Layout: the same back-office sheet as Profit and Tax Totals. The report goes in at the top, three ruled counts sit under it, box-by-box ledgers follow. */
 :root {
@@ -107,7 +111,11 @@ td.who { overflow-wrap: anywhere; }
 @media (max-width: 480px) { h1 { font-size: 24px; } .figure .value { font-size: 30px; } }
 @media print { .intake, .lede, button[data-copy] { display: none !important; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.disclaimer { margin: 12px 0 0; font-size: 12px; color: var(--muted); max-width: 80ch; }
+.disclaimer a { color: inherit; }
 </style>
+</head>
+<body>
 
 <main class="wrap">
   <header>
@@ -153,10 +161,15 @@ td.who { overflow-wrap: anywhere; }
 
   <section class="ledger" id="ledger-added"></section>
   <section class="ledger" id="ledger-closed"></section>
+
+  <p class="disclaimer">Provided free and as-is, with no warranty of any kind. These tools read PostalMate reports in your browser; always check the results against the original reports before relying on them for USPS, tax or other filings. <a href="./">All tools</a></p>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script type="module">
+import * as pdfjsLib from './vendor/pdfjs/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.min.mjs';
+window.pdfjsLib = pdfjsLib;
+</script>
 <script>
 /* CMRA Quarterly Report reader and mailbox counter. Plain JS, no DOM, so it runs in the page and in Node for testing. */
 const CMRA = (function () {
@@ -459,7 +472,6 @@ if (typeof module !== 'undefined') module.exports = CMRA;
 
   async function readPdf(file) {
     if (!window.pdfjsLib) throw new Error('The PDF reader did not load. Reload the page and try again.');
-    try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; } catch (e) { /* main-thread reader is already loaded */ }
     const data = new Uint8Array(await file.arrayBuffer());
     const doc = await window.pdfjsLib.getDocument({ data }).promise;
     const pages = [];
@@ -626,4 +638,5 @@ if (typeof module !== 'undefined') module.exports = CMRA;
 })();
 </script>
 
-</body></html>
+</body>
+</html>
