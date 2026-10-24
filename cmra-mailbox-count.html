@@ -1,0 +1,629 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>CMRA Mailbox Counts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: the same back-office sheet as Profit and Tax Totals. The report goes in at the top, three ruled counts sit under it, box-by-box ledgers follow. */
+:root {
+  --bg: #f1f5f4;
+  --surface: #ffffff;
+  --ink: #15211f;
+  --muted: #586966;
+  --line: #d3dcd9;
+  --accent: #0f5c55;
+  --accent-ink: #ffffff;
+  --accent-soft: #dfecea;
+  --warn: #7a4f00;
+  --warn-bg: #fbf0d6;
+  --warn-line: #e6cf94;
+  --ok: #1d6638;
+  --ok-soft: #e1f0e5;
+  --bad: #a02f28;
+  --bad-soft: #f7e3e1;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-label: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1514; --surface: #172020; --ink: #e5eeec; --muted: #9baba7; --line: #2a3836;
+    --accent: #72c9bd; --accent-ink: #0c1b19; --accent-soft: #1c3430;
+    --warn: #e8c069; --warn-bg: #2b2412; --warn-line: #5a4a1f; --ok: #82d19c; --ok-soft: #173023; --bad: #f08d83; --bad-soft: #351b19;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1514; --surface: #172020; --ink: #e5eeec; --muted: #9baba7; --line: #2a3836;
+  --accent: #72c9bd; --accent-ink: #0c1b19; --accent-soft: #1c3430;
+  --warn: #e8c069; --warn-bg: #2b2412; --warn-line: #5a4a1f; --ok: #82d19c; --ok-soft: #173023; --bad: #f08d83; --bad-soft: #351b19;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; display: flex; flex-direction: column; gap: 22px; }
+
+h1 { font-family: var(--font-label); font-weight: 600; font-size: 28px; line-height: 1.15; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-family: var(--font-label); font-weight: 600; font-size: 18px; margin: 0; text-wrap: balance; }
+.cmra-line { margin: 4px 0 0; font-size: 16px; font-weight: 500; overflow-wrap: anywhere; }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 64ch; }
+.label { font-family: var(--font-label); font-weight: 600; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+
+button, .btn { font: inherit; font-weight: 500; cursor: pointer; border-radius: 4px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 6px 12px; }
+button:hover, .btn:hover { border-color: var(--accent); }
+button:disabled { cursor: default; opacity: 0.5; border-color: var(--line); }
+button:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn-small { font-size: 13px; padding: 3px 9px; }
+
+/* Report in */
+.intake { background: var(--surface); border: 1px dashed var(--muted); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.intake.over { border-style: solid; border-color: var(--accent); background: var(--accent-soft); }
+.intake-top { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.intake-top p { margin: 0; min-width: 0; }
+.slot { border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px 18px; }
+.slot.ready { border-left: 3px solid var(--ok); }
+.slot div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.slot .val { font-weight: 500; overflow-wrap: anywhere; }
+.slot.empty .val { color: var(--muted); font-weight: 400; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Notices */
+.notices { display: flex; flex-direction: column; gap: 8px; }
+.notices:empty { display: none; }
+.notice { border: 1px solid var(--warn-line); background: var(--warn-bg); color: var(--warn); border-radius: 4px; padding: 9px 12px; }
+.notice.info { border-color: var(--line); background: var(--surface); color: var(--muted); }
+.notice.error { border-color: var(--bad); color: var(--bad); background: var(--surface); }
+.notice strong { font-weight: 600; }
+
+/* Three counts */
+.figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.figure { background: var(--surface); padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.figure .value { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 34px; line-height: 1.1; color: var(--accent); }
+.figure .value.pending { color: var(--muted); font-weight: 400; }
+.figure .sub { font-size: 13px; color: var(--muted); }
+.figure .sub:empty { display: none; }
+.figure .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.summary-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.summary-row p { margin: 0; min-width: 0; flex: 1 1 320px; }
+.summary-row .n { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* Ledgers */
+.ledger { display: flex; flex-direction: column; gap: 10px; }
+.ledger:empty { display: none; }
+.ledger-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; justify-content: space-between; }
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+thead th { font-family: var(--font-label); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; white-space: nowrap; }
+td.box { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; width: 5.5em; }
+td.date { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; width: 7.5em; }
+td.who { overflow-wrap: anywhere; }
+.help { margin: 0; font-size: 13px; color: var(--muted); max-width: 72ch; }
+.empty-row td { color: var(--muted); }
+
+@media (max-width: 480px) { h1 { font-size: 24px; } .figure .value { font-size: 30px; } }
+@media print { .intake, .lede, button[data-copy] { display: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main class="wrap">
+  <header>
+    <h1>CMRA Mailbox Counts</h1>
+    <p class="cmra-line" id="cmra-line" hidden></p>
+    <p class="lede">Add a CMRA Quarterly Report. This counts unique mailboxes rented at the end of the period, boxes newly rented during the quarter, and boxes closed during the quarter.</p>
+  </header>
+
+  <section class="intake" id="intake" aria-label="Report">
+    <div class="intake-top">
+      <p>Drop the report PDF here. It is read in your browser and is not uploaded.</p>
+      <label class="btn btn-primary" for="file-input" id="choose-label">Choose PDF</label>
+      <input class="sr-only" type="file" id="file-input" accept="application/pdf,.pdf">
+    </div>
+    <div class="slot empty" id="slot"></div>
+  </section>
+
+  <div class="notices" id="notices" aria-live="polite"></div>
+
+  <section aria-label="Counts" style="display:flex;flex-direction:column;gap:10px">
+    <div class="figures">
+      <div class="figure">
+        <span class="label">Boxes rented</span>
+        <div class="row"><span class="value" id="val-rented">—</span><button class="btn-small" type="button" id="copy-rented" data-copy="rented">Copy</button></div>
+        <span class="sub" id="sub-rented"></span>
+      </div>
+      <div class="figure">
+        <span class="label">Boxes added</span>
+        <div class="row"><span class="value" id="val-added">—</span><button class="btn-small" type="button" id="copy-added" data-copy="added">Copy</button></div>
+        <span class="sub" id="sub-added"></span>
+      </div>
+      <div class="figure">
+        <span class="label">Boxes closed</span>
+        <div class="row"><span class="value" id="val-closed">—</span><button class="btn-small" type="button" id="copy-closed" data-copy="closed">Copy</button></div>
+        <span class="sub" id="sub-closed"></span>
+      </div>
+    </div>
+    <div class="summary-row">
+      <p id="tally"></p>
+      <button type="button" id="copy-all" data-copy="all">Copy all three</button>
+    </div>
+  </section>
+
+  <section class="ledger" id="ledger-added"></section>
+  <section class="ledger" id="ledger-closed"></section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script>
+/* CMRA Quarterly Report reader and mailbox counter. Plain JS, no DOM, so it runs in the page and in Node for testing. */
+const CMRA = (function () {
+  'use strict';
+
+  const DATE_RE = /^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
+  const D = '(\\d{1,2}\\/\\d{1,2}\\/\\d{2,4})';
+
+  function dnum(s) {
+    const p = String(s).split('/').map(Number);
+    const y = p[2] < 100 ? 2000 + p[2] : p[2];
+    return y * 10000 + p[0] * 100 + p[1];
+  }
+  const norm = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const boxKey = s => String(s).trim().toUpperCase().replace(/^(?:PMB|BOX|#)\s*/, '').replace(/\s+/g, '');
+  const hasDigit = s => /\d/.test(s);
+
+  /* Group positioned text items into rows: same baseline within 2.5 units, left to right. */
+  function buildRows(items) {
+    const rows = [];
+    items.filter(i => i.s && i.s.trim()).sort((a, b) => b.y - a.y || a.x - b.x).forEach(it => {
+      const last = rows[rows.length - 1];
+      if (last && Math.abs(last.y - it.y) <= 2.5) last.items.push(it);
+      else rows.push({ y: it.y, items: [it] });
+    });
+    rows.forEach(r => {
+      r.items.sort((a, b) => a.x - b.x);
+      r.items = r.items.map(i => ({ x: i.x, s: i.s.replace(/\s+/g, ' ').trim() }));
+      r.text = r.items.map(i => i.s).join(' ');
+    });
+    return rows;
+  }
+
+  const COLUMN_WORDS = new Set(['customer', '/', 'addressee', 'delivery', 'designation', 'service', 'began', 'terminated', 'date']);
+  const isColumnHeader = t => t.toLowerCase().split(' ').every(w => COLUMN_WORDS.has(w));
+  const pageFurniture = t => /^CMRA Quarterly Report$/i.test(t) || /^For Period Ending\b/i.test(t) || /\bPage \d+$/i.test(t) || /\bVersion [\d.]+$/i.test(t) || /\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{2}\s*[AP]M$/i.test(t);
+  const shape = t => t.replace(/\d+/g, '#');
+
+  /* pages: one array of {x, y, s} text items per page */
+  function parse(pages) {
+    const rowsByPage = pages.map(buildRows);
+    const out = {
+      periodEnd: null, asOf: null, cmra: [],
+      active: [], added: [], terminated: [],
+      ranges: { added: null, terminated: null },
+      totals: { active: null, added: null, terminated: null },
+      unread: []
+    };
+
+    /* The page header (CMRA name, address, page number, run date) repeats on every page. Learn it from page 1. */
+    const header = new Set();
+    const first = rowsByPage[0] || [];
+    for (const r of first) {
+      if (/^All active customers\b|^Customers (added|terminated)\b/i.test(r.text)) break;
+      header.add(shape(r.text));
+      const m = r.text.match(new RegExp('For Period Ending ' + D, 'i'));
+      if (m) { out.periodEnd = m[1]; continue; }
+      const rest = r.text
+        .replace(/\s*(Version [\d.]+|\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{2}\s*[AP]M|Page \d+)$/i, '')
+        .replace(/^CMRA name and address:?\s*/i, '')
+        .replace(/^CMRA Quarterly Report$/i, '')
+        .trim();
+      if (rest) out.cmra.push(rest);
+    }
+    out.cmra = out.cmra.filter(Boolean);
+
+    let section = null;
+    let last = null;
+    let splitLayout = false;
+
+    const entryFrom = row => {
+      let items = row.items.slice();
+      let date = null;
+      if (items.length >= 2 && DATE_RE.test(items[items.length - 1].s)) date = items.pop().s;
+      if (items.length >= 2) {
+        const boxItem = items[items.length - 1];
+        if (!/\s/.test(boxItem.s) && hasDigit(boxItem.s)) {
+          splitLayout = true;
+          return { name: items.slice(0, -1).map(i => i.s).join(' '), box: boxKey(boxItem.s), boxLabel: boxItem.s, date };
+        }
+      }
+      /* Name and box run together in one piece of text, which happens when a long name spills into the box column. */
+      const m = row.text.match(new RegExp('^(.*\\S)\\s+(\\S*\\d\\S*?)(?:\\s+' + D + ')?$'));
+      if (!m || DATE_RE.test(m[2])) return null;
+      if (splitLayout && !/^[A-Z]?\d+[A-Z]?$/i.test(m[2])) return null;
+      return { name: m[1], box: boxKey(m[2]), boxLabel: m[2], date: m[3] || date };
+    };
+
+    rowsByPage.forEach((rows, pi) => {
+      for (const row of rows) {
+        const t = row.text;
+        if (header.has(shape(t)) || pageFurniture(t)) continue;
+        let m;
+        if ((m = t.match(/^All active customers(?: as of (\S+))?/i))) { section = 'active'; last = null; if (m[1] && DATE_RE.test(m[1])) out.asOf = m[1]; continue; }
+        if ((m = t.match(new RegExp('^Customers added from ' + D + ' through ' + D, 'i')))) { section = 'added'; last = null; out.ranges.added = { from: m[1], to: m[2] }; continue; }
+        if ((m = t.match(new RegExp('^Customers terminated from ' + D + ' through ' + D, 'i')))) { section = 'terminated'; last = null; out.ranges.terminated = { from: m[1], to: m[2] }; continue; }
+        if ((m = t.match(/^Total (Active|Added|Terminated):?\s*(\d+)/i))) { out.totals[m[1].toLowerCase()] = +m[2]; last = null; continue; }
+        if (/^Includes\b/i.test(t) || isColumnHeader(t)) continue;
+        if (!section) continue;
+        const e = entryFrom(row);
+        if (e) {
+          e.page = pi + 1;
+          out[section].push(e);
+          last = e;
+        } else if (last && row.items.length === 1 && splitLayout) {
+          last.name += ' ' + t; /* a long name wrapped onto a second line */
+        } else {
+          out.unread.push({ page: pi + 1, text: t });
+        }
+      }
+    });
+    return out;
+  }
+
+  /* ---------- Counting boxes ---------- */
+
+  function quarterOf(rep) {
+    if (rep.ranges.added) return { from: rep.ranges.added.from, to: rep.ranges.added.to, source: 'added' };
+    const end = rep.periodEnd || rep.asOf;
+    if (!end) return null;
+    const [mo, , y] = end.split('/').map(Number);
+    let sm = mo - 2, sy = y < 100 ? 2000 + y : y;
+    if (sm < 1) { sm += 12; sy -= 1; }
+    return { from: sm + '/1/' + sy, to: end, source: 'period' };
+  }
+
+  function analyze(rep, opts) {
+    const ignore = new Set(((opts && opts.ignore) || []).map(boxKey).filter(Boolean));
+    const keep = e => !ignore.has(e.box);
+    const ignored = {
+      active: rep.active.filter(e => !keep(e)).length,
+      added: rep.added.filter(e => !keep(e)).length,
+      terminated: rep.terminated.filter(e => !keep(e)).length,
+      boxes: Array.from(ignore)
+    };
+    const active = rep.active.filter(keep);
+    const added = rep.added.filter(keep);
+    const terminated = rep.terminated.filter(keep);
+
+    const q = quarterOf(rep);
+    const qFrom = q ? dnum(q.from) : -Infinity;
+    const qTo = q ? dnum(q.to) : Infinity;
+    const inQ = d => d != null && d >= qFrom && d <= qTo;
+
+    /* Each addressee becomes a record with a start (null = before the added list's dates) and an end (null = still active).
+       Added entries are matched to terminated and active entries by name and box; repeated rows are matched one for one. */
+    const pool = new Map();
+    added.forEach(e => {
+      const k = norm(e.name) + '|' + e.box;
+      if (!pool.has(k)) pool.set(k, []);
+      pool.get(k).push({ d: e.date ? dnum(e.date) : null, e });
+    });
+    pool.forEach(list => list.sort((a, b) => (a.d || 0) - (b.d || 0)));
+
+    const records = [];
+    terminated.slice().sort((a, b) => dnum(a.date || '1/1/1900') - dnum(b.date || '1/1/1900')).forEach(e => {
+      const end = e.date ? dnum(e.date) : null;
+      const list = pool.get(norm(e.name) + '|' + e.box) || [];
+      const i = list.findIndex(a => a.d != null && end != null && a.d <= end);
+      const start = i >= 0 ? list.splice(i, 1)[0].d : null;
+      records.push({ name: e.name, box: e.box, start, end, kind: 'terminated' });
+    });
+    active.forEach(e => {
+      const list = pool.get(norm(e.name) + '|' + e.box) || [];
+      const start = list.length ? list.pop().d : null;
+      records.push({ name: e.name, box: e.box, start, end: null, kind: 'active' });
+    });
+    const unmatchedAdds = [];
+    pool.forEach(list => list.forEach(a => {
+      unmatchedAdds.push(a.e);
+      records.push({ name: a.e.name, box: a.e.box, start: a.d, end: null, kind: 'unmatched' });
+    }));
+
+    const byBox = new Map();
+    records.forEach(r => { if (!byBox.has(r.box)) byBox.set(r.box, []); byBox.get(r.box).push(r); });
+
+    /* Someone holds the box going into day d. */
+    const heldBefore = (box, d) => byBox.get(box).some(r => (r.start == null || r.start < d) && (r.end == null || r.end >= d));
+    /* Someone still holds the box once day t's terminations are done. */
+    const heldAfter = (box, t) => byBox.get(box).some(r => (r.start == null || r.start <= t) && (r.end == null || r.end > t));
+
+    const rented = new Map();
+    active.forEach(e => { if (!rented.has(e.box)) rented.set(e.box, { box: e.box, label: e.boxLabel, names: [] }); rented.get(e.box).names.push(e.name); });
+
+    const startBoxes = new Set();
+    byBox.forEach((_, box) => { if (q && heldBefore(box, qFrom)) startBoxes.add(box); });
+
+    /* New rentals: an addressee starts on a box nobody held going into that day. */
+    const opens = [];
+    const seenOpen = new Set();
+    records.filter(r => inQ(r.start)).sort((a, b) => a.start - b.start).forEach(r => {
+      const k = r.box + '@' + r.start;
+      if (seenOpen.has(k) || heldBefore(r.box, r.start)) return;
+      seenOpen.add(k);
+      opens.push({ box: r.box, date: r.start });
+    });
+
+    /* Closures: the last addressee on a box ends and nobody else holds it. */
+    const closes = [];
+    const seenClose = new Set();
+    records.filter(r => inQ(r.end)).sort((a, b) => a.end - b.end).forEach(r => {
+      const k = r.box + '@' + r.end;
+      if (seenClose.has(k) || heldAfter(r.box, r.end)) return;
+      seenClose.add(k);
+      closes.push({ box: r.box, date: r.end });
+    });
+
+    const namesOn = (box, pred) => byBox.get(box).filter(pred).map(r => r.name);
+    const uniq = arr => Array.from(new Set(arr));
+
+    const openBoxes = uniq(opens.map(o => o.box));
+    const closeBoxes = uniq(closes.map(c => c.box));
+
+    const newRentals = openBoxes.map(box => {
+      const ev = opens.filter(o => o.box === box);
+      return {
+        box, dates: ev.map(o => o.date),
+        names: uniq(namesOn(box, r => inQ(r.start))),
+        rentedNow: rented.has(box),
+        wasClosedThisQuarter: closes.some(c => c.box === box && c.date <= ev[0].date)
+      };
+    });
+    const closedBoxes = closeBoxes.map(box => {
+      const ev = closes.filter(c => c.box === box);
+      return {
+        box, dates: ev.map(c => c.date),
+        names: uniq(namesOn(box, r => inQ(r.end))),
+        rentedNow: rented.has(box)
+      };
+    });
+
+    /* On the added list, but the box already had someone on it. */
+    const addedBoxes = uniq(added.filter(e => !e.date || inQ(dnum(e.date))).map(e => e.box));
+    const newAddresseeOnly = addedBoxes.filter(b => !openBoxes.includes(b)).map(box => ({
+      box, names: uniq(added.filter(e => e.box === box).map(e => e.name)),
+      keptBy: uniq(namesOn(box, r => r.start == null && r.end == null))
+    }));
+
+    /* On the terminated list this quarter, but the box was never left empty. */
+    const termBoxesQ = uniq(terminated.filter(e => e.date && inQ(dnum(e.date))).map(e => e.box));
+    const removedOnly = termBoxesQ.filter(b => !closeBoxes.includes(b)).map(box => ({
+      box, names: uniq(terminated.filter(e => e.box === box && e.date && inQ(dnum(e.date))).map(e => e.name)),
+      keptBy: uniq(namesOn(box, r => r.end == null))
+    }));
+
+    const earlier = terminated.filter(e => e.date && dnum(e.date) < qFrom);
+    const earlierBoxes = uniq(earlier.map(e => e.box));
+
+    return {
+      quarter: q,
+      rented: Array.from(rented.values()).sort(byBoxOrder),
+      rentedCount: rented.size,
+      activeAddressees: active.length,
+      startCount: startBoxes.size,
+      newRentals: newRentals.sort(byBoxOrder),
+      closed: closedBoxes.sort(byBoxOrder),
+      openEvents: opens.length,
+      closeEvents: closes.length,
+      newAddresseeOnly: newAddresseeOnly.sort(byBoxOrder),
+      removedOnly: removedOnly.sort(byBoxOrder),
+      addedListBoxes: addedBoxes.length,
+      terminatedListBoxesQ: termBoxesQ.length,
+      earlier: { addressees: earlier.length, boxes: earlierBoxes.length, from: rep.ranges.terminated ? rep.ranges.terminated.from : null },
+      unmatchedAdds,
+      ignored,
+      balances: startBoxes.size + opens.length - closes.length === rented.size
+    };
+  }
+
+  function byBoxOrder(a, b) {
+    const na = parseInt(a.box, 10), nb = parseInt(b.box, 10);
+    if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+    return String(a.box).localeCompare(String(b.box));
+  }
+
+  function fmtDate(n) {
+    if (n == null) return '';
+    const y = Math.floor(n / 10000), m = Math.floor(n / 100) % 100, d = n % 100;
+    return m + '/' + d + '/' + y;
+  }
+
+  return { parse, analyze, buildRows, fmtDate, boxKey, dnum };
+})();
+if (typeof module !== 'undefined') module.exports = CMRA;
+
+</script>
+<script>
+(function () {
+  'use strict';
+
+  const state = { report: null, sample: false, errors: [] };
+  let result = null;
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fd = CMRA.fmtDate;
+  const plural = (n, one, many) => n + ' ' + (n === 1 ? one : (many || one + 's'));
+
+  /* ---------- Reading the PDF ---------- */
+
+  async function readPdf(file) {
+    if (!window.pdfjsLib) throw new Error('The PDF reader did not load. Reload the page and try again.');
+    try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; } catch (e) { /* main-thread reader is already loaded */ }
+    const data = new Uint8Array(await file.arrayBuffer());
+    const doc = await window.pdfjsLib.getDocument({ data }).promise;
+    const pages = [];
+    for (let p = 1; p <= doc.numPages; p++) {
+      const tc = await (await doc.getPage(p)).getTextContent();
+      pages.push(tc.items.map(i => ({ x: i.transform[4], y: i.transform[5], s: i.str })));
+    }
+    return pages;
+  }
+
+  async function addFiles(fileList) {
+    const file = Array.from(fileList || []).find(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
+    state.errors = [];
+    if (!file) { state.errors.push('That file is not a PDF. Add the CMRA Quarterly Report as a PDF.'); render(); return; }
+    try {
+      const pages = await readPdf(file);
+      if (!pages.some(p => p.some(i => i.s && i.s.trim()))) {
+        state.errors.push(file.name + ' has no readable text. It may be a scan; export the report as a PDF from the point-of-sale system instead.');
+      } else {
+        const rep = CMRA.parse(pages);
+        rep.fileName = file.name;
+        if (!rep.active.length && !rep.added.length && !rep.terminated.length) {
+          state.errors.push(file.name + ' does not look like a CMRA Quarterly Report. No active, added or terminated customer lists were found.');
+        } else {
+          state.report = rep;
+          state.sample = false;
+        }
+      }
+    } catch (e) {
+      state.errors.push(file.name + ' could not be read. ' + (e && e.message ? e.message : ''));
+    }
+    render();
+  }
+
+  /* ---------- Showing it ---------- */
+
+  function who(names) {
+    return names.map(esc).join('<br>');
+  }
+  const rangeText = q => q ? q.from + ' to ' + q.to : 'the quarter';
+
+  function slotHtml(rep) {
+    if (!rep) return '<div><span class="label">CMRA Quarterly Report</span><span class="val">Not added yet</span></div>';
+    const period = rep.periodEnd ? 'Ending ' + rep.periodEnd : 'Period end not found';
+    const where = rep.cmra && rep.cmra.length ? rep.cmra.join(', ') : 'CMRA name not found';
+    return '<div><span class="label">File</span><span class="val">' + esc(rep.fileName || 'Report') + '</span></div>' +
+      '<div><span class="label">Period</span><span class="val">' + esc(period) + '</span></div>' +
+      '<div><span class="label">CMRA</span><span class="val">' + esc(where) + '</span></div>';
+  }
+
+  function render() {
+    const rep = state.report;
+    const notices = [];
+    state.errors.forEach(e => notices.push({ cls: 'error', html: esc(e) }));
+
+    $('slot').className = 'slot ' + (rep ? 'ready' : 'empty');
+    $('slot').innerHTML = slotHtml(rep);
+    const cmraName = rep && rep.cmra && rep.cmra.length ? rep.cmra.join(', ') : '';
+    $('cmra-line').textContent = cmraName;
+    $('cmra-line').hidden = !cmraName;
+
+    if (!rep) {
+      result = null;
+      ['rented', 'added', 'closed'].forEach(k => { $('val-' + k).textContent = '—'; $('val-' + k).classList.add('pending'); $('sub-' + k).textContent = 'Add a report'; $('copy-' + k).disabled = true; });
+      $('copy-all').disabled = true;
+      $('tally').textContent = '';
+      ['ledger-added', 'ledger-closed'].forEach(id => { $(id).innerHTML = ''; });
+      $('notices').innerHTML = notices.map(n => '<div class="notice ' + n.cls + '">' + n.html + '</div>').join('');
+      return;
+    }
+
+    const a = CMRA.analyze(rep);
+    result = a;
+    const q = a.quarter;
+    const asOf = rep.asOf || rep.periodEnd || (q && q.to);
+
+    /* Counts */
+    $('val-rented').textContent = a.rentedCount;
+    $('val-added').textContent = a.newRentals.length;
+    $('val-closed').textContent = a.closed.length;
+    ['rented', 'added', 'closed'].forEach(k => { $('val-' + k).classList.remove('pending'); $('copy-' + k).disabled = false; });
+    $('copy-all').disabled = false;
+    const n = v => '<span class="n">' + v + '</span>';
+    $('tally').innerHTML = q
+      ? 'Starting with ' + n(a.startCount) + ' boxes on ' + esc(q.from) + ' + ' + n(a.newRentals.length) + ' new rentals − ' + n(a.closed.length) + ' closed boxes = ' + n(a.rentedCount) + ' total' + (asOf ? ' on ' + esc(asOf) : '')
+      : '';
+
+    $('sub-rented').textContent = plural(a.activeAddressees, 'addressee');
+    $('sub-added').textContent = '';
+    $('sub-closed').textContent = '';
+
+    /* Checks: shown only when something does not add up */
+    const t = rep.totals;
+    const parsed = { active: rep.active.length, added: rep.added.length, terminated: rep.terminated.length };
+    const keys = ['active', 'added', 'terminated'].filter(k => t[k] != null);
+    const off = keys.filter(k => t[k] !== parsed[k]);
+
+    if (off.length) notices.push({ cls: 'error', html: 'The report\'s totals do not match what was read: ' + off.map(k => esc(k) + ' ' + parsed[k] + ' read, report says ' + t[k]).join('; ') + '. Some lines may have been missed, so check the lists below against the PDF.' });
+    if (!q) notices.push({ cls: '', html: 'No date range was found on this report, so boxes added and closed cannot be dated to a quarter.' });
+    else if (q.source === 'period') notices.push({ cls: '', html: 'This report has no "Customers added" date range, so the quarter is taken as <strong>' + esc(rangeText(q)) + '</strong> from the period end.' });
+    if (q && !a.balances) notices.push({ cls: '', html: 'Boxes rented going into the quarter, plus openings, less closings, does not equal the boxes rented now. A name may be spelled differently between the lists. Check the tables below.' });
+    if (rep.unread && rep.unread.length) notices.push({ cls: '', html: plural(rep.unread.length, 'line') + ' in the customer lists could not be read as a name and box: <strong>' + esc(rep.unread.slice(0, 6).map(u => u.text).join(' · ')) + (rep.unread.length > 6 ? ' …' : '') + '</strong>' });
+    if (a.unmatchedAdds.length) notices.push({ cls: '', html: 'On the added list but in neither the active nor the terminated list: <strong>' + esc(a.unmatchedAdds.map(e => e.name + ' (box ' + e.boxLabel + ')').join(', ')) + '</strong>. They are treated as still on their box.' });
+
+    /* Boxes added */
+    const addedRows = a.newRentals.map(r => '<tr><td class="box">' + esc(r.box) + '</td><td class="date">' + r.dates.map(fd).join('<br>') + '</td><td class="who">' + who(r.names) + '</td></tr>').join('') ||
+      '<tr class="empty-row"><td colspan="3">No boxes were newly rented in this period.</td></tr>';
+    $('ledger-added').innerHTML = '<div class="ledger-head"><h2>Boxes added</h2><span class="muted">' + plural(a.newRentals.length, 'box', 'boxes') + ' · ' + esc(rangeText(q)) + '</span></div>' +
+      '<div class="scroll"><table><thead><tr><th>Box</th><th>Opened</th><th>New addressees</th></tr></thead><tbody>' + addedRows + '</tbody></table></div>';
+
+    /* Boxes closed */
+    const closedRows = a.closed.map(c => '<tr><td class="box">' + esc(c.box) + '</td><td class="date">' + c.dates.map(fd).join('<br>') + '</td><td class="who">' + who(c.names) + '</td></tr>').join('') ||
+      '<tr class="empty-row"><td colspan="3">No boxes were closed in this period.</td></tr>';
+    $('ledger-closed').innerHTML = '<div class="ledger-head"><h2>Boxes closed</h2><span class="muted">' + plural(a.closed.length, 'box', 'boxes') + ' · ' + esc(rangeText(q)) + '</span></div>' +
+      '<div class="scroll"><table><thead><tr><th>Box</th><th>Closed</th><th>Addressees who left</th></tr></thead><tbody>' + closedRows + '</tbody></table></div>';
+
+    $('notices').innerHTML = notices.map(n => '<div class="notice ' + n.cls + '">' + n.html + '</div>').join('');
+  }
+
+  /* ---------- Controls ---------- */
+
+  function copyText(text, button) {
+    const done = () => { const old = button.textContent; button.textContent = 'Copied'; setTimeout(() => { button.textContent = old; }, 1400); };
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { if (document.execCommand('copy')) done(); } catch (e) { /* leave the value on screen to select by hand */ }
+      document.body.removeChild(ta);
+    };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+  }
+
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-copy]');
+    if (!btn || !result) return;
+    const q = result.quarter;
+    const asOf = state.report.asOf || state.report.periodEnd || '';
+    const which = btn.dataset.copy;
+    if (which === 'rented') copyText(String(result.rentedCount), btn);
+    else if (which === 'added') copyText(String(result.newRentals.length), btn);
+    else if (which === 'closed') copyText(String(result.closed.length), btn);
+    else copyText([
+      'Boxes rented' + (asOf ? ' as of ' + asOf : '') + ': ' + result.rentedCount,
+      'Boxes added' + (q ? ' ' + q.from + ' to ' + q.to : '') + ': ' + result.newRentals.length,
+      'Boxes closed' + (q ? ' ' + q.from + ' to ' + q.to : '') + ': ' + result.closed.length
+    ].join('\n'), btn);
+  });
+
+  const fileInput = $('file-input');
+  fileInput.addEventListener('change', () => { addFiles(fileInput.files).then(() => { fileInput.value = ''; }); });
+  $('choose-label').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+  $('choose-label').tabIndex = 0;
+  $('choose-label').setAttribute('role', 'button');
+
+  const intake = $('intake');
+  ['dragenter', 'dragover'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); intake.classList.add('over'); }));
+  document.addEventListener('dragleave', e => { if (!e.relatedTarget) intake.classList.remove('over'); });
+  document.addEventListener('drop', e => { e.preventDefault(); intake.classList.remove('over'); if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+
+
+  window.__cmc = { state, addFiles, result: () => result };
+  render();
+})();
+</script>
+
+</body></html>
