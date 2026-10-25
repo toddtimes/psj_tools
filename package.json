@@ -1,6 +1,7 @@
 {
   "name": "psj-tools",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "lint": "npm run lint:html && npm run lint:js && npm run lint:site",

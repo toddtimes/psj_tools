@@ -73,3 +73,7 @@ The local server doesn't send the `_headers` security headers, so a CSP problem 
 ### Updating pdf.js, jsPDF and fonts
 
 See [`site/vendor/README.md`](site/vendor/README.md). Check every three months, and whenever a security advisory comes out. A pdf.js update can change the minimum browser versions above.
+
+## License
+
+[MIT](LICENSE). The libraries and fonts in `site/vendor/` keep their own licences, which are included next to them: pdf.js (Apache 2.0), jsPDF (MIT), and the fonts (SIL Open Font License).
