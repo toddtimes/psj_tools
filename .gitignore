@@ -1,7 +1,14 @@
 .DS_Store
 node_modules/
-# Report exports and data never belong in the published site.
+# Report exports and data never belong in the repo; they can contain customer details.
 *.pdf
 *.csv
+*.tsv
 *.xls
 *.xlsx
+*.xlsm
+*.numbers
+*.ods
+*.doc
+*.docx
+*.rtf
