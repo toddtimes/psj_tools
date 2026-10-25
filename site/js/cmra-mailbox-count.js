@@ -290,7 +290,7 @@ if (typeof module !== 'undefined') module.exports = CMRA;
   let result = null;
 
   const $ = id => document.getElementById(id);
-  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const esc = Site.esc;
   const fd = CMRA.fmtDate;
   const plural = (n, one, many) => n + ' ' + (n === 1 ? one : (many || one + 's'));
 

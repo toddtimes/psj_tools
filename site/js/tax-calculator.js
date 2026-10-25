@@ -4,10 +4,7 @@
   const DEFAULT_RETAIL = ['Packing Materials', 'Gift Wrap and Totes', 'Misc Non-Taxable', 'Postage Stamps', 'Greeting Cards', 'Misc. Retail', 'Envelopes / Mailers', 'Holiday', 'OTC Packing Supplies', 'Gift Boxes'];
   const DEFAULT_SERVICES = ['Shipping', 'Insurance', 'Copies', 'Mailbox Rentals', 'Labor', 'Laminating', 'FedEx', 'UPS', 'USPS', 'Service Fee', 'Fax / Email', 'Shredding'];
 
-  const store = {
-    get(key, fallback) { try { const v = localStorage.getItem(key); return v == null ? fallback : JSON.parse(v); } catch (e) { return fallback; } },
-    set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ } }
-  };
+  const store = Site.store;
 
   const savedLists = store.get('ptt.lists.v2', null);
   let lists = savedLists && Array.isArray(savedLists.retail) && Array.isArray(savedLists.services)
@@ -25,7 +22,7 @@
   const state = { profit: null, tax: null, errors: [] };
 
   const $ = id => document.getElementById(id);
-  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const esc = Site.esc;
   const norm = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
   const cents = v => (v == null ? 0 : Math.round(v * 100));
   const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });

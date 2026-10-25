@@ -362,11 +362,8 @@ var MNL = (function () {
   'use strict';
 
   var $ = function (id) { return document.getElementById(id); };
-  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
-  var store = {
-    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
-  };
+  var esc = Site.esc;
+  var store = Site.store;
 
   var settings = Object.assign({ showNumber: true, nameStyle: 'report', offX: 0, offY: 0, outlines: false }, store.get('mnl.settings', {}));
   function saveSettings() { store.set('mnl.settings', settings); }
