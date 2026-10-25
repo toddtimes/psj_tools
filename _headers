@@ -1,0 +1,13 @@
+# Security headers Cloudflare sends with every page and file.
+# The Content-Security-Policy only lets pages run scripts, styles, fonts and images from this
+# site, makes no network requests at all (connect-src 'none'), and blocks inline scripts and
+# styles and framing by other sites. That stops injected markup from running code or quietly
+# sending report data to another server. It does not cover a script navigating the page away,
+# which is why everything read from a PDF is also escaped before it is shown.
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin
