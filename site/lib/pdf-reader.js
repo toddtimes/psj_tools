@@ -7,30 +7,51 @@ var PdfReader = (function () {
   'use strict';
 
   var base = document.currentScript.src;
+  var POLYFILLS_URL = new URL('pdf-polyfills.mjs', base).href;
   var LIB_URL = new URL('../vendor/pdfjs/pdf.min.mjs', base).href;
-  var WORKER_URL = new URL('../vendor/pdfjs/pdf.worker.min.mjs', base).href;
+  var WORKER_URL = new URL('pdf-worker.mjs', base).href;
 
-  /* pdf.js 6 calls these without fallbacks; they set the minimum browser versions listed on the index page. */
+  /* pdf.js 6 calls these without fallbacks, and they are too involved to supply ourselves. Simpler
+     missing built-ins are filled in by pdf-polyfills.mjs. See site/vendor/README.md. */
   var supported = typeof Promise.try === 'function' &&
     typeof Promise.withResolvers === 'function' &&
     typeof Uint8Array.prototype.toHex === 'function';
 
-  var TOO_OLD = 'This browser is too old to read the PDF. Update it, or use a current version of Chrome, Edge, Firefox or Safari.';
-  var NOT_LOADED = 'The PDF reader could not be loaded. Reload the page and try again.';
+  var TOO_OLD = 'This browser is too old to read the PDFs. Update it, or use a current version of Chrome, Edge, Firefox or Safari.';
+  var NOT_LOADED = 'The PDF reader could not be loaded. Check the connection and try again.';
 
+  /* A failed module import is cached by URL for the life of the page, so each retry asks for a fresh URL. */
+  var attempt = 0;
   var loading = null;
   function load() {
     if (!supported) return Promise.reject(new Error(TOO_OLD));
     if (!loading) {
-      loading = import(LIB_URL).then(function (lib) {
-        lib.GlobalWorkerOptions.workerSrc = WORKER_URL;
-        return lib;
-      }, function () {
-        loading = null; /* let the next read try again */
-        throw new Error(NOT_LOADED);
-      });
+      var q = attempt ? '?retry=' + attempt : '';
+      attempt++;
+      loading = import(POLYFILLS_URL + q)
+        .then(function () { return import(LIB_URL + q); })
+        .then(function (lib) {
+          lib.GlobalWorkerOptions.workerSrc = WORKER_URL + q;
+          return lib;
+        }, function () {
+          loading = null;
+          throw new Error(NOT_LOADED);
+        });
     }
     return loading;
+  }
+
+  /* pdf.js errors are written for developers; say what happened in terms of the report. */
+  function plainError(e) {
+    var name = e && e.name, msg = (e && e.message) || '';
+    if (name === 'PasswordException') return new Error('This PDF is password-protected. Export the report again without a password.');
+    if (name === 'InvalidPDFException') return new Error('This file is damaged or is not really a PDF. Export the report from PostalMate again.');
+    if (/fake worker|dynamically imported module|importScripts|Failed to fetch/i.test(msg)) {
+      loading = null; /* reload pdf.js and its worker from fresh URLs next time */
+      return new Error(NOT_LOADED);
+    }
+    if (/is not a function|is not defined|is not a constructor/.test(msg)) return new Error(TOO_OLD + ' (' + msg + ')');
+    return e instanceof Error ? e : new Error(msg || 'The PDF could not be read.');
   }
 
   /* Returns one array per page of text items: { str, x, y, w } in PDF points, origin bottom-left. */
@@ -47,6 +68,8 @@ var PdfReader = (function () {
         page.cleanup();
       }
       return pages;
+    } catch (e) {
+      throw plainError(e);
     } finally {
       await task.destroy();
     }
@@ -54,5 +77,5 @@ var PdfReader = (function () {
 
   if (supported) load().catch(function () { /* reported when a file is read */ });
 
-  return { readPages: readPages, supported: supported };
+  return { readPages: readPages, supported: supported, TOO_OLD: TOO_OLD };
 })();
