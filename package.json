@@ -1,0 +1,17 @@
+{
+  "name": "psj-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "npm run lint:html && npm run lint:js && npm run lint:site",
+    "lint:html": "html-validate \"*.html\"",
+    "lint:js": "eslint",
+    "lint:site": "node scripts/check-site.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "html-validate": "^11.17.0"
+  }
+}
