@@ -13,8 +13,10 @@
   /* A base cost is a fixed monthly cost the report does not know about, such as rent behind Mailbox Rentals.
      Rows keep exactly what was typed so a half-entered amount is never lost; only valid rows are applied.
      v1 stored parsed { name, monthly } pairs and is carried over once. */
-  const savedCosts = store.get('ptt.costs.v2', null) ||
-    (store.get('ptt.costs.v1', []) || []).map(c => ({ name: c && c.name, amount: c && c.monthly != null ? String(c.monthly) : '' }));
+  const v1Costs = store.get('ptt.costs.v1', []);
+  const savedCosts = store.get('ptt.costs.v2', null) || (Array.isArray(v1Costs) ? v1Costs : [])
+    .filter(c => c && typeof c.name === 'string' && typeof c.monthly === 'number' && c.monthly > 0)
+    .map(c => ({ name: c.name, amount: (Math.round(c.monthly * 100) / 100).toFixed(2) }));
   let costRows = (Array.isArray(savedCosts) ? savedCosts : [])
     .filter(c => c && typeof c.name === 'string' && typeof c.amount === 'string')
     .map(c => ({ name: c.name, amount: c.amount }));
@@ -179,7 +181,11 @@
     return { sales, cost, profit, noCost };
   }
 
-  /* Months a date range covers. Whole months count as 1; a partly covered month counts by its share of days. */
+  /* Months a date range covers. Whole months count as 1; a partly covered month counts by its share of days.
+     The exact figure is used for base costs; fmtMonths rounds it for display only. */
+  const rangeBackwards = range => !!range && toDate(range.to) < toDate(range.from);
+  const fmtMonths = m => +m.toFixed(2);
+  const wholeMonths = m => Math.abs(m - Math.round(m)) < 1e-9;
   function monthsCovered(range) {
     if (!range) return null;
     const a = new Date(toDate(range.from)), b = new Date(toDate(range.to));
@@ -192,7 +198,7 @@
       total += (last - first + 1) / days;
       if (m === 11) { y++; m = 0; } else { m++; }
     }
-    return Math.round(total * 100) / 100;
+    return total;
   }
 
   function addUp(names) {
@@ -250,7 +256,7 @@
     const body = sum.rows.map(r => {
       if (r.missing) return '<tr class="missing"><td>' + esc(r.name) + ' <span class="tag">not on this report</span></td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>';
       const nc = r.noCost !== 0 ? money(r.noCost) : '—';
-      const baseTag = r.base ? ' <span class="tag">base cost ' + money(r.perMonth) + ' a month × ' + sum.months + (sum.months === 1 ? ' month' : ' months') + '</span>' : '';
+      const baseTag = r.base ? ' <span class="tag">base cost ' + money(r.perMonth) + ' a month × ' + fmtMonths(sum.months) + (sum.months === 1 ? ' month' : ' months') + '</span>' : '';
       return '<tr><td>' + esc(r.name) + baseTag + '</td><td class="n">' + money(r.sales) + '</td><td class="n">' + (r.cost == null ? '—' : money(r.cost)) + '</td><td class="n profit">' + money(r.profit) + '</td><td class="n">' + nc + '</td></tr>';
     }).join('');
     const tSales = sum.rows.reduce((s, r) => s + r.sales, 0);
@@ -299,8 +305,12 @@
       state.profit.problems.forEach(p => notices.push({ cls: '', html: esc(p) }));
 
       const listed = retail.rows.concat(services.rows);
-      if (listed.some(r => r.unapplied)) notices.push({ cls: '', html: 'No date range was found on this Profit Report, so monthly base costs were <strong>not</strong> taken off.' });
-      else if (listed.some(r => r.base) && retail.months % 1 !== 0) notices.push({ cls: '', html: 'This Profit Report covers <strong>' + retail.months + ' months</strong>, not a whole number, so monthly base costs are scaled to match.' });
+      if (listed.some(r => r.unapplied)) {
+        notices.push({ cls: '', html: rangeBackwards(state.profit.range)
+          ? 'This Profit Report\'s date range ends before it starts (' + esc(state.profit.range.from) + ' to ' + esc(state.profit.range.to) + '), so monthly base costs were <strong>not</strong> taken off.'
+          : 'No date range was found on this Profit Report, so monthly base costs were <strong>not</strong> taken off.' });
+      }
+      else if (listed.some(r => r.base) && !wholeMonths(retail.months)) notices.push({ cls: '', html: 'This Profit Report covers <strong>' + fmtMonths(retail.months) + ' months</strong>, not a whole number, so monthly base costs are scaled to match.' });
 
       const both = retail.rows.filter(r => !r.missing && services.keys.has(r.key));
       both.forEach(r => notices.push({ cls: '', html: '<strong>' + esc(r.name) + '</strong> is in both lists, so its ' + money(r.profit) + ' profit is counted in the retail total and again in the services total.' }));
@@ -458,7 +468,7 @@
     if (!name) return { text: 'Enter the department this cost belongs to.', bad: true, field: 'name' };
     if (!amount) return { text: 'Enter the monthly amount.', bad: true, field: 'amount' };
     const k = norm(name);
-    if (costRows.some((o, j) => j < i && norm(o.name) === k)) return { text: name + ' is listed more than once, so its amounts are added together.', bad: false };
+    if (costRows.some((o, j) => j < i && norm(o.name) === k && parseAmount(o.amount))) return { text: name + ' is listed more than once, so its amounts are added together.', bad: false };
     if (!lists.retail.concat(lists.services).some(n => norm(n) === k)) return { text: name + ' is not in the Retail or Services list under Categories, so this cost is not taken off.', bad: false };
     if (state.profit && !state.profit.depts.some(d => norm(d.name) === k)) return { text: name + ' is not on this Profit Report, so this cost is not taken off.', bad: false };
     return { text: '', bad: false };
