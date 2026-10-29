@@ -315,15 +315,14 @@ var MNL = (function () {
     return Math.round(Math.max(MIN_PT_FLOOR, Math.min(MAX_PT, v)) * 2) / 2;
   }
 
-  /* Box number (and last names) centered as one line, at the top or bottom, with a rule
+  /* Box number (and last names) as one line flush left, at the top or bottom, with a rule
      between it and the names. Returns the runs and the name area left over. */
   function headRuns(nbr, opts, W, H, measure) {
     var num = String(nbr), numW = measure(num, NUM_PT, true), capH = NUM_PT * CAP / 72;
     var availW = W - PAD_X * 2;
     var names = (opts.lastNames || []).filter(Boolean);
     var tail = names.length ? fitHeadNames(names, opts.sep || '&', availW - numW - HEAD_GAP, minPtOf(opts), measure) : null;
-    var lineW = numW + (tail ? HEAD_GAP + measure(tail.text, tail.size, true) : 0);
-    var x = (W - lineW) / 2;
+    var x = PAD_X; /* flush left, so the number sits in the same spot on every label */
     var bottom = !!opts.numberAtBottom;
     var base = bottom ? H - PAD_BOTTOM : PAD_TOP + capH;
     var runs = [{ kind: 'num', text: num, x: x, y: base, size: NUM_PT, bold: true }];
