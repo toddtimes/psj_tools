@@ -221,13 +221,14 @@ var MNL = (function () {
 
   /* ---------- Label layout ----------
      measure(text, sizePt, bold) -> width in inches.
-     A box's names are set one per line in a single size between MIN_PT and MAX_PT. When they
-     don't fit on one label at MIN_PT they run onto extra labels, which carry no box number.
+     A box's names are set one per line in a single size between the smallest size allowed
+     (opts.minPt, MIN_PT by default, never below MIN_PT_FLOOR) and MAX_PT. When they don't fit
+     on one label at that size they run onto extra labels, which carry no box number.
      Layout works in the label's own frame, W x H, which is turned 90 degrees when rot is set;
      runs carry x, y (text baseline) in inches in that frame, and toLabel() maps a point back
      onto the label as it sits on the sheet. */
   var PAD_X = 0.19, PAD_TOP = 0.17, PAD_BOTTOM = 0.15;
-  var NUM_PT = 19, MAX_PT = 12, MIN_PT = 10.5, STEP = 0.25, INDENT = 0.13;
+  var NUM_PT = 19, MAX_PT = 12, MIN_PT = 10.5, MIN_PT_FLOOR = 6, STEP = 0.25, INDENT = 0.13;
   var LEAD = 1.2, NAME_GAP = 0.22;  /* line height and extra space between names, in ems */
   var CAP = 0.718;                  /* Helvetica cap height, in ems */
   var HEAD_GAP = 0.12;              /* space between the box number and the last names, inches */
@@ -294,17 +295,24 @@ var MNL = (function () {
 
   /* Up to two last names beside the box number: both at the largest size that fits, else the
      first alone, else the first cut short. */
-  function fitHeadNames(names, sep, width, measure) {
+  function fitHeadNames(names, sep, width, minPt, measure) {
     var tries = [names.slice(0, 2).join(' ' + sep + ' ')];
     if (names.length > 1) tries.push(names[0]);
     for (var t = 0; t < tries.length; t++) {
-      for (var s = NUM_PT; s >= MIN_PT - 1e-9; s -= 0.5) {
+      for (var s = NUM_PT; s >= minPt - 1e-9; s -= 0.5) {
         if (measure(tries[t], s, true) <= width) return { text: tries[t], size: s };
       }
     }
     var text = names[0];
-    while (text.length > 1 && measure(text + '…', MIN_PT, true) > width) text = text.slice(0, -1);
-    return text.length > 1 ? { text: text.trim() + '…', size: MIN_PT } : null;
+    while (text.length > 1 && measure(text + '…', minPt, true) > width) text = text.slice(0, -1);
+    return text.length > 1 ? { text: text.trim() + '…', size: minPt } : null;
+  }
+
+  /* The smallest size names may shrink to, clamped to a sane range in half-point steps. */
+  function minPtOf(opts) {
+    var v = Number(opts && opts.minPt);
+    if (!isFinite(v)) return MIN_PT;
+    return Math.round(Math.max(MIN_PT_FLOOR, Math.min(MAX_PT, v)) * 2) / 2;
   }
 
   /* Box number (and last names) centered as one line, at the top or bottom, with a rule
@@ -313,7 +321,7 @@ var MNL = (function () {
     var num = String(nbr), numW = measure(num, NUM_PT, true), capH = NUM_PT * CAP / 72;
     var availW = W - PAD_X * 2;
     var names = (opts.lastNames || []).filter(Boolean);
-    var tail = names.length ? fitHeadNames(names, opts.sep || '&', availW - numW - HEAD_GAP, measure) : null;
+    var tail = names.length ? fitHeadNames(names, opts.sep || '&', availW - numW - HEAD_GAP, minPtOf(opts), measure) : null;
     var lineW = numW + (tail ? HEAD_GAP + measure(tail.text, tail.size, true) : 0);
     var x = (W - lineW) / 2;
     var bottom = !!opts.numberAtBottom;
@@ -329,7 +337,7 @@ var MNL = (function () {
     };
   }
 
-  /* opts: { stock, showNumber, numberAtBottom, lastNames: [..], sep, rotate: 0 | 90 | -90 }
+  /* opts: { stock, showNumber, numberAtBottom, lastNames: [..], sep, rotate: 0 | 90 | -90, minPt }
      rotate 90 turns the text clockwise (reads downward), -90 counter-clockwise (reads upward). */
   function layoutBox(nbr, names, opts, measure) {
     var LABEL = getStock(opts.stock).label;
@@ -342,8 +350,9 @@ var MNL = (function () {
     if (!names.length) return Object.assign(base, { size: 0, fits: true, empty: true, parts: [{ runs: head ? head.runs : [], count: 0 }] });
 
     /* Fewest labels the names need at the smallest size, then the largest size that keeps that count. */
-    var need = pack(names, MIN_PT, width, h1, h2, measure).parts.length, size = MIN_PT, packed = null;
-    for (var s = MAX_PT; s >= MIN_PT - 1e-9; s -= STEP) {
+    var minPt = minPtOf(opts);
+    var need = pack(names, minPt, width, h1, h2, measure).parts.length, size = minPt, packed = null;
+    for (var s = MAX_PT; s >= minPt - 1e-9; s -= STEP) {
       var p = pack(names, s, width, h1, h2, measure);
       if (p.parts.length <= need) { size = s; packed = p; break; }
     }
@@ -396,7 +405,7 @@ var MNL = (function () {
   return {
     SHEET: SHEET, STOCKS: STOCKS, DEFAULT_STOCK: DEFAULT_STOCK, getStock: getStock,
     parseReport: parseReport, isClosed: isClosed, firstLast: firstLast, cleanName: cleanName, splitEntry: splitEntry, looksLikePerson: looksLikePerson,
-    layoutBox: layoutBox, toLabel: toLabel, lastNameOf: lastNameOf, paginate: paginate, MIN_PT: MIN_PT, MAX_PT: MAX_PT
+    layoutBox: layoutBox, toLabel: toLabel, lastNameOf: lastNameOf, paginate: paginate, minPtOf: minPtOf, MIN_PT: MIN_PT, MIN_PT_FLOOR: MIN_PT_FLOOR, MAX_PT: MAX_PT
   };
 })();
 
@@ -409,12 +418,13 @@ var MNL = (function () {
 
   var settings = Object.assign({
     showNumber: true, nameStyle: 'report', offX: 0, offY: 0, outlines: false,
-    rotate: 0, numberAtBottom: false, lastNames: false, sep: '&', turnPreview: false
+    rotate: 0, numberAtBottom: false, lastNames: false, sep: '&', turnPreview: false, minPt: MNL.MIN_PT
   }, store.get('mnl.settings', {}));
   if ([0, 90].indexOf(Number(settings.rotate)) === -1) settings.rotate = 0;
   settings.rotate = Number(settings.rotate);
   if (['&', '/'].indexOf(settings.sep) === -1) settings.sep = '&';
   if (!MNL.STOCKS[settings.stock]) settings.stock = MNL.DEFAULT_STOCK;
+  settings.minPt = MNL.minPtOf(settings);
   function stock() { return MNL.getStock(settings.stock); }
   function saveSettings() { store.set('mnl.settings', settings); }
 
@@ -489,7 +499,8 @@ var MNL = (function () {
       lastNames: showNames ? lastNamesFor(box) : [],
       sep: settings.sep,
       stock: settings.stock,
-      rotate: settings.rotate
+      rotate: settings.rotate,
+      minPt: settings.minPt
     };
   }
 
@@ -818,6 +829,7 @@ var MNL = (function () {
     $('style-' + (settings.nameStyle === 'first' ? 'first' : 'report')).checked = true;
     $('off-x').value = settings.offX || 0;
     $('off-y').value = settings.offY || 0;
+    $('min-pt').value = settings.minPt;
     $('outlines').checked = !!settings.outlines;
     $(settings.rotate === 90 ? 'rot-r' : 'rot-0').checked = true;
     syncTurn();
@@ -958,6 +970,10 @@ var MNL = (function () {
     settings[key] = isFinite(v) ? Math.max(-0.5, Math.min(0.5, v)) : 0;
     saveSettings(); applyPrintSettings();
   }
+  $('min-pt').addEventListener('change', function (e) {
+    settings.minPt = MNL.minPtOf({ minPt: e.target.value });
+    e.target.value = settings.minPt; saveSettings(); schedulePreview(true);
+  });
   $('off-x').addEventListener('change', function () { readOffset('off-x', 'offX'); });
   $('off-y').addEventListener('change', function () { readOffset('off-y', 'offY'); });
   $('outlines').addEventListener('change', function (e) { settings.outlines = e.target.checked; saveSettings(); applyPrintSettings(); });
