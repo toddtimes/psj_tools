@@ -12,3 +12,14 @@
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
+
+# The pages are never cached, but Cloudflare's default lets browsers keep scripts and styles
+# for four hours. A deploy that changes a page and its script together would then run the new
+# page with the old script, so the site's own files must be revalidated on every load. The
+# third-party code and fonts in vendor/ change rarely and keep the default.
+/js/*
+  Cache-Control: public, max-age=0, must-revalidate
+/css/*
+  Cache-Control: public, max-age=0, must-revalidate
+/lib/*
+  Cache-Control: public, max-age=0, must-revalidate

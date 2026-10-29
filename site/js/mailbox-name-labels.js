@@ -970,6 +970,11 @@ var MNL = (function () {
     settings[key] = isFinite(v) ? Math.max(-0.5, Math.min(0.5, v)) : 0;
     saveSettings(); applyPrintSettings();
   }
+  /* The preview follows the field as it is typed in; the value is tidied once it is left. */
+  $('min-pt').addEventListener('input', function (e) {
+    if (e.target.value === '') return;
+    settings.minPt = MNL.minPtOf({ minPt: e.target.value }); saveSettings(); schedulePreview();
+  });
   $('min-pt').addEventListener('change', function (e) {
     settings.minPt = MNL.minPtOf({ minPt: e.target.value });
     e.target.value = settings.minPt; saveSettings(); schedulePreview(true);
