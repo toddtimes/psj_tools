@@ -40,6 +40,8 @@ scripts/check-site.mjs        site-specific lint checks
 
 Cloudflare deploys `site/` from the `main` branch. It runs `npm ci && npm run lint` first, and a failing lint stops the deploy. GitHub Actions runs the same lint on every push and pull request.
 
+Pages sends every file with `Cache-Control: max-age=0, must-revalidate`, so browsers check for a new version on each visit. The zone's **Browser Cache TTL** (Cloudflare dashboard → Caching → Configuration) must be set to **Respect Existing Headers**. At its default of four hours Cloudflare rewrites that header for scripts and styles, and a visitor who loaded the site before a deploy runs the new page with the old script for up to four hours. A `_headers` rule can't fix this, because the zone setting overrides it too.
+
 ### Rules that must not break
 
 These protect the "nothing leaves your computer" promise. `npm run lint` enforces most of them.
