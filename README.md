@@ -6,7 +6,7 @@ Small browser tools for shipping and mailbox stores that run PostalMate. Each on
 |---|---|---|
 | CMRA Mailbox Counts | CMRA Quarterly Report | Boxes rented, added and closed for the quarter, with box-by-box lists |
 | Profit and Tax Totals | Profit Report + Sales Tax Report | Retail and services gross profit and total taxable sales, less any monthly base costs you enter |
-| Mailbox Name Labels | Mailnames Report | A printable PDF of box name labels, 8 per Letter sheet |
+| Mailbox Name Labels | Mailnames Report | A printable PDF of box name labels, on 8-per-sheet Letter stock or Avery 5164 |
 
 **Your reports never leave your computer.** The PDFs are read in your browser. Nothing is uploaded, there is no server or account, and the site's security policy blocks the pages from making network requests at all. The only things saved are your settings, such as category lists and base costs, and they stay in your own browser.
 

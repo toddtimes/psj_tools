@@ -2,13 +2,24 @@
 var MNL = (function () {
   'use strict';
 
-  /* ---------- Label stock: measured from the 8-up template (inches) ---------- */
+  /* ---------- Label stock: positions measured from each template PDF (inches, Letter) ---------- */
   var SHEET = { w: 8.5, h: 11 };
-  var LABEL = { w: 3.4125, h: 2.3365, r: 0.13 };
-  var COLS_X = [0.67, 4.4176];
-  var ROWS_Y = [0.5952, 3.0862, 5.5773, 8.0683];
-  var SLOTS = [];
-  ROWS_Y.forEach(function (y) { COLS_X.forEach(function (x) { SLOTS.push({ x: x, y: y }); }); });
+  function stock(id, name, size, label, cols, rows) {
+    var slots = [];
+    rows.forEach(function (y) { cols.forEach(function (x) { slots.push({ x: x, y: y }); }); });
+    return { id: id, name: name, size: size, label: label, cols: cols.length, slots: slots, perSheet: slots.length };
+  }
+  var STOCKS = {
+    royal8: stock('royal8', '8 per sheet', '3⅜ × 2⅓ in',
+      { w: 3.4125, h: 2.3365, r: 0.13 }, [0.67, 4.4176], [0.5952, 3.0862, 5.5773, 8.0683]),
+    avery5164: stock('avery5164', 'Avery 5164', '4 × 3⅓ in',
+      { w: 4.0, h: 3.3333, r: 0.19 }, [0.1556, 4.3437], [0.5, 3.8326, 7.166])
+  };
+  var DEFAULT_STOCK = 'royal8';
+  function getStock(s) {
+    if (s && typeof s === 'object' && s.label) return s;
+    return STOCKS[s] || STOCKS[DEFAULT_STOCK];
+  }
 
   /* ---------- Report parsing ---------- */
   var DATE_RE = /(\d{1,2}\/\d{1,2}\/\d{4})/;
@@ -158,6 +169,9 @@ var MNL = (function () {
     var boxes = Array.from(byNbr.values()).sort(function (a, b) { return a.nbr - b.nbr; });
     boxes.forEach(function (b) {
       delete b.seen;
+      /* People first, then businesses, each in report order. */
+      b.names = b.names.filter(function (n) { return !n.business; })
+        .concat(b.names.filter(function (n) { return n.business; }));
       var open = b.names.filter(function (n) { return !isClosed(n.status); });
       var ref = open[0] || b.names[0];
       b.status = ref.status;
@@ -183,9 +197,17 @@ var MNL = (function () {
     var out = [];
     raw.split(SEP_RE).forEach(function (p, i) {
       p = cleanName(p);
-      if (p) out.push({ text: p, business: i > 0 });
+      if (p) out.push({ text: p, business: i > 0 || !looksLikePerson(p) });
     });
     return out;
+  }
+
+  /* The report writes people as "LAST, FIRST". Anything without that comma, or with an
+     entity word in it (LLC, Inc, Trust, Estate...), is treated as a business. */
+  var ENTITY_RE = /\b(L\.?L\.?C|P\.?L\.?L\.?C|INC|INCORPORATED|CORP|CORPORATION|CO|COMPANY|LTD|LLP|LP|TRUST|TRUSTEE|ESTATE|FOUNDATION|ASSOCIATION|ASSN|HOA|HOMEOWNERS|OWNERS|CONDOMINIUM|CONDO|GROUP|HOLDINGS|PROPERTIES|PARTNERS|SERVICES|ENTERPRISES|CLUB|SOCIETY|FUND|INSTITUTE|NETWORK)\b/;
+  function looksLikePerson(text) {
+    var t = String(text).toUpperCase();
+    return t.indexOf(',') !== -1 && !ENTITY_RE.test(t);
   }
 
   /* ---------- Name styles ---------- */
@@ -199,10 +221,17 @@ var MNL = (function () {
 
   /* ---------- Label layout ----------
      measure(text, sizePt, bold) -> width in inches.
-     Returns runs with x, y (baseline) relative to the label's top-left, in inches. */
+     A box's names are set one per line in a single size between MIN_PT and MAX_PT. When they
+     don't fit on one label at MIN_PT they run onto extra labels, which carry no box number.
+     Layout works in the label's own frame, W x H, which is turned 90 degrees when rot is set;
+     runs carry x, y (text baseline) in inches in that frame, and toLabel() maps a point back
+     onto the label as it sits on the sheet. */
   var PAD_X = 0.19, PAD_TOP = 0.17, PAD_BOTTOM = 0.15;
-  var NUM_PT = 19, MAX_PT = 12, MIN_PT = 5.5, STEP = 0.25, COL_GAP = 0.16, INDENT = 0.13;
-  var LEAD = 1.2, NAME_GAP = 0.22; /* line height and extra space between names, in ems */
+  var NUM_PT = 19, MAX_PT = 12, MIN_PT = 10.5, STEP = 0.25, INDENT = 0.13;
+  var LEAD = 1.2, NAME_GAP = 0.22;  /* line height and extra space between names, in ems */
+  var CAP = 0.718;                  /* Helvetica cap height, in ems */
+  var HEAD_GAP = 0.12;              /* space between the box number and the last names, inches */
+  var RULE_BELOW = 0.075, RULE_ABOVE = 0.085;
 
   /* Greedy word wrap. firstW is the first line's width, restW every later line's. */
   function wrapWords(text, firstW, restW, sizePt, measure) {
@@ -221,10 +250,12 @@ var MNL = (function () {
     return lines;
   }
 
-  /* Wraps a name, preferring to break after the dash that separates a person from a business. */
+  /* Wraps a name, preferring to break after a dash. Falls back to breaking anywhere for a
+     word too wide for the label. */
   function wrap(text, width, sizePt, measure) {
     var greedy = wrapWords(text, width, width - INDENT, sizePt, measure);
-    if (!greedy || greedy.length < 2) return greedy;
+    if (!greedy) return hardWrap(text, width, sizePt, measure);
+    if (greedy.length < 2) return greedy;
     var m = text.match(/^(.*?\s[–—-])\s+(.*)$/);
     if (!m) return greedy;
     var head = wrapWords(m[1], width, width - INDENT, sizePt, measure);
@@ -233,128 +264,139 @@ var MNL = (function () {
     return greedy;
   }
 
-  function blockHeight(wrapped, sizePt) {
-    if (!wrapped.length) return 0;
-    var lh = sizePt * LEAD / 72, gap = sizePt * NAME_GAP / 72, lines = 0;
-    wrapped.forEach(function (w) { lines += w.length; });
-    return lines * lh + (wrapped.length - 1) * gap;
-  }
-
-  function tryFit(names, cols, sizePt, availW, availH, measure) {
-    var colW = cols === 1 ? availW : (availW - COL_GAP) / 2;
-    var wrapped = [];
-    for (var i = 0; i < names.length; i++) {
-      var w = wrap(names[i], colW, sizePt, measure);
-      if (!w) return null;
-      wrapped.push(w);
-    }
-    if (cols === 1) return blockHeight(wrapped, sizePt) <= availH + 1e-6 ? { colW: colW, columns: [wrapped] } : null;
-    var best = null;
-    for (var k = 1; k < wrapped.length; k++) {
-      var a = wrapped.slice(0, k), b = wrapped.slice(k);
-      var h = Math.max(blockHeight(a, sizePt), blockHeight(b, sizePt));
-      if (!best || h < best.h - 1e-9) best = { h: h, columns: [a, b] };
-    }
-    return best && best.h <= availH + 1e-6 ? { colW: colW, columns: best.columns } : null;
-  }
-
-  function largestFit(names, cols, availW, availH, measure) {
-    var steps = Math.round((MAX_PT - MIN_PT) / STEP);
-    var lo = 0, hi = steps, found = null;
-    while (lo <= hi) {
-      var mid = (lo + hi) >> 1, size = MIN_PT + mid * STEP;
-      var fit = tryFit(names, cols, size, availW, availH, measure);
-      if (fit) { found = { size: size, fit: fit }; lo = mid + 1; } else hi = mid - 1;
-    }
-    return found;
-  }
-
-  /* Two narrow columns only pay off when names stay on one line, so each wrapped line
-     costs WRAP_COST points against the font size when comparing with one column. */
-  var WRAP_COST = 6;
-  function bestTwoColumn(names, availW, availH, measure) {
-    var best = null;
-    for (var size = MAX_PT; size >= MIN_PT - 1e-9; size -= STEP) {
-      var fit = tryFit(names, 2, size, availW, availH, measure);
-      if (!fit) continue;
-      var lines = 0;
-      fit.columns.forEach(function (col) { col.forEach(function (w) { lines += w.length; }); });
-      var score = size - WRAP_COST * (lines - names.length) / names.length;
-      if (!best || score > best.score + 1e-9) best = { size: size, fit: fit, score: score };
-      if (lines === names.length) break; /* smaller sizes cannot score higher */
-    }
-    return best;
-  }
-
   function hardWrap(text, width, sizePt, measure) {
     var lines = [], line = '';
-    text.split(' ').forEach(function (word) {
-      var trial = line ? line + ' ' + word : word;
+    Array.from(text).forEach(function (ch) {
       var avail = lines.length ? width - INDENT : width;
-      if (measure(trial, sizePt) <= avail || !line) line = trial;
-      else { lines.push(line); line = word; }
+      if (!line || measure(line + ch, sizePt) <= avail) line += ch;
+      else { lines.push(line.trim()); line = ch.trim(); }
     });
     if (line) lines.push(line);
     return lines;
   }
 
-  function layoutLabel(nbr, names, opts, measure) {
-    var runs = [], top = PAD_TOP;
-    var availW = LABEL.w - PAD_X * 2;
-    if (opts.showNumber) {
-      var numCap = NUM_PT * 0.718 / 72;
-      var base = PAD_TOP + numCap;
-      var numX = (LABEL.w - measure(String(nbr), NUM_PT, true)) / 2; /* centered on the label */
-      runs.push({ kind: 'num', text: String(nbr), x: numX, y: base, size: NUM_PT, bold: true });
-      var ruleY = base + 0.075;
-      runs.push({ kind: 'rule', x: PAD_X, y: ruleY, w: availW });
-      top = ruleY + 0.085;
-    }
-    var availH = LABEL.h - PAD_BOTTOM - top;
-    if (!names.length) return { runs: runs, size: 0, cols: 1, fits: true, empty: true };
-
-    var one = largestFit(names, 1, availW, availH, measure);
-    var two = names.length >= 3 ? bestTwoColumn(names, availW, availH, measure) : null;
-    var pick = one, cols = 1, fits = true;
-    if (two && (!one || two.score >= one.size + 0.5)) { pick = two; cols = 2; }
-    if (!pick) {
-      /* Too many names even at the smallest size: set it at the minimum and flag it. */
-      fits = false; cols = names.length >= 3 ? 2 : 1;
-      var cw = cols === 1 ? availW : (availW - COL_GAP) / 2;
-      var wrapped = names.map(function (n) { return hardWrap(n, cw, MIN_PT, measure); });
-      var split = Math.ceil(wrapped.length / 2);
-      pick = { size: MIN_PT, fit: { colW: cw, columns: cols === 1 ? [wrapped] : [wrapped.slice(0, split), wrapped.slice(split)] } };
-    }
-
-    var size = pick.size, lh = size * LEAD / 72, gap = size * NAME_GAP / 72, asc = size * 0.718 / 72;
-    pick.fit.columns.forEach(function (col, ci) {
-      var x0 = PAD_X + ci * (pick.fit.colW + COL_GAP), y = top + asc;
-      col.forEach(function (lines, ni) {
-        lines.forEach(function (line, li) {
-          runs.push({ kind: 'name', text: line, x: x0 + (li ? INDENT : 0), y: y, size: size, bold: false });
-          y += lh;
-        });
-        if (ni < col.length - 1) y += gap;
-      });
+  /* Fills labels in order at one size. h1 is the name area on the first label, h2 on the rest. */
+  function pack(names, size, width, h1, h2, measure) {
+    var lh = size * LEAD / 72, gap = size * NAME_GAP / 72;
+    var parts = [[]], used = 0, avail = h1, over = false;
+    names.forEach(function (name) {
+      var lines = wrap(name, width, size, measure), h = lines.length * lh;
+      var cur = parts[parts.length - 1], need = cur.length ? used + gap + h : h;
+      if (need > avail + 1e-6 && cur.length) {
+        cur = []; parts.push(cur); avail = h2; need = h;
+      }
+      if (need > avail + 1e-6) over = true; /* one name taller than a whole label */
+      cur.push(lines);
+      used = need;
     });
-    return { runs: runs, size: size, cols: cols, fits: fits };
+    return { parts: parts, over: over };
   }
 
-  /* Places labels on sheets. start is 1-8, the first free label on the first sheet. */
-  function paginate(count, start) {
-    var out = [], slot = Math.max(0, Math.min(7, (start || 1) - 1)), sheet = 0;
+  /* Up to two last names beside the box number: both at the largest size that fits, else the
+     first alone, else the first cut short. */
+  function fitHeadNames(names, sep, width, measure) {
+    var tries = [names.slice(0, 2).join(' ' + sep + ' ')];
+    if (names.length > 1) tries.push(names[0]);
+    for (var t = 0; t < tries.length; t++) {
+      for (var s = NUM_PT; s >= MIN_PT - 1e-9; s -= 0.5) {
+        if (measure(tries[t], s, true) <= width) return { text: tries[t], size: s };
+      }
+    }
+    var text = names[0];
+    while (text.length > 1 && measure(text + '…', MIN_PT, true) > width) text = text.slice(0, -1);
+    return text.length > 1 ? { text: text.trim() + '…', size: MIN_PT } : null;
+  }
+
+  /* Box number (and last names) centered as one line, at the top or bottom, with a rule
+     between it and the names. Returns the runs and the name area left over. */
+  function headRuns(nbr, opts, W, H, measure) {
+    var num = String(nbr), numW = measure(num, NUM_PT, true), capH = NUM_PT * CAP / 72;
+    var availW = W - PAD_X * 2;
+    var names = (opts.lastNames || []).filter(Boolean);
+    var tail = names.length ? fitHeadNames(names, opts.sep || '&', availW - numW - HEAD_GAP, measure) : null;
+    var lineW = numW + (tail ? HEAD_GAP + measure(tail.text, tail.size, true) : 0);
+    var x = (W - lineW) / 2;
+    var bottom = !!opts.numberAtBottom;
+    var base = bottom ? H - PAD_BOTTOM : PAD_TOP + capH;
+    var runs = [{ kind: 'num', text: num, x: x, y: base, size: NUM_PT, bold: true }];
+    if (tail) runs.push({ kind: 'head', text: tail.text, x: x + numW + HEAD_GAP, y: base, size: tail.size, bold: true });
+    var ruleY = bottom ? base - capH - RULE_ABOVE : base + RULE_BELOW;
+    runs.push({ kind: 'rule', x: PAD_X, y: ruleY, w: availW });
+    return {
+      runs: runs,
+      top: bottom ? PAD_TOP : ruleY + RULE_ABOVE,
+      bottom: bottom ? ruleY - RULE_BELOW : H - PAD_BOTTOM
+    };
+  }
+
+  /* opts: { stock, showNumber, numberAtBottom, lastNames: [..], sep, rotate: 0 | 90 | -90 }
+     rotate 90 turns the text clockwise (reads downward), -90 counter-clockwise (reads upward). */
+  function layoutBox(nbr, names, opts, measure) {
+    var LABEL = getStock(opts.stock).label;
+    var rot = opts.rotate === 90 || opts.rotate === -90 ? opts.rotate : 0;
+    var W = rot ? LABEL.h : LABEL.w, H = rot ? LABEL.w : LABEL.h, width = W - PAD_X * 2;
+    var head = opts.showNumber ? headRuns(nbr, opts, W, H, measure) : null;
+    var top1 = head ? head.top : PAD_TOP;
+    var h1 = (head ? head.bottom : H - PAD_BOTTOM) - top1, h2 = H - PAD_TOP - PAD_BOTTOM;
+    var base = { rot: rot, W: W, H: H };
+    if (!names.length) return Object.assign(base, { size: 0, fits: true, empty: true, parts: [{ runs: head ? head.runs : [], count: 0 }] });
+
+    /* Fewest labels the names need at the smallest size, then the largest size that keeps that count. */
+    var need = pack(names, MIN_PT, width, h1, h2, measure).parts.length, size = MIN_PT, packed = null;
+    for (var s = MAX_PT; s >= MIN_PT - 1e-9; s -= STEP) {
+      var p = pack(names, s, width, h1, h2, measure);
+      if (p.parts.length <= need) { size = s; packed = p; break; }
+    }
+    var lh = size * LEAD / 72, gap = size * NAME_GAP / 72, asc = size * CAP / 72;
+    var parts = packed.parts.map(function (group, pi) {
+      var runs = pi === 0 && head ? head.runs.slice() : [];
+      var y = (pi === 0 ? top1 : PAD_TOP) + asc;
+      group.forEach(function (lines, ni) {
+        lines.forEach(function (line, li) {
+          runs.push({ kind: 'name', text: line, x: PAD_X + (li ? INDENT : 0), y: y, size: size, bold: false });
+          y += lh;
+        });
+        if (ni < group.length - 1) y += gap;
+      });
+      return { runs: runs, count: group.length };
+    });
+    return Object.assign(base, { size: size, fits: !packed.over, parts: parts });
+  }
+
+  /* Maps a point in the label's own (possibly turned) frame to the label's frame on the sheet. */
+  function toLabel(x, y, rot, stockOrId) {
+    var LABEL = getStock(stockOrId).label;
+    if (rot === 90) return { x: LABEL.w - y, y: x };
+    if (rot === -90) return { x: y, y: LABEL.h - x };
+    return { x: x, y: y };
+  }
+
+  /* Last name of a "LAST, FIRST" entry, or the last word of a name written "FIRST LAST". */
+  function lastNameOf(text) {
+    var t = String(text).replace(/\s+/g, ' ').trim();
+    if (!t) return '';
+    var c = t.indexOf(',');
+    if (c > 0) return t.slice(0, c).trim();
+    var w = t.split(' ');
+    return w[w.length - 1];
+  }
+
+  /* Places labels on sheets. start is the first free label on the first sheet, counting from 1. */
+  function paginate(count, start, perSheet) {
+    var n = perSheet || 8;
+    var out = [], slot = Math.max(0, Math.min(n - 1, (start || 1) - 1)), sheet = 0;
     for (var i = 0; i < count; i++) {
       out.push({ sheet: sheet, slot: slot });
       slot++;
-      if (slot > 7) { slot = 0; sheet++; }
+      if (slot > n - 1) { slot = 0; sheet++; }
     }
     return out;
   }
 
   return {
-    SHEET: SHEET, LABEL: LABEL, SLOTS: SLOTS,
-    parseReport: parseReport, isClosed: isClosed, firstLast: firstLast, cleanName: cleanName, splitEntry: splitEntry,
-    layoutLabel: layoutLabel, paginate: paginate
+    SHEET: SHEET, STOCKS: STOCKS, DEFAULT_STOCK: DEFAULT_STOCK, getStock: getStock,
+    parseReport: parseReport, isClosed: isClosed, firstLast: firstLast, cleanName: cleanName, splitEntry: splitEntry, looksLikePerson: looksLikePerson,
+    layoutBox: layoutBox, toLabel: toLabel, lastNameOf: lastNameOf, paginate: paginate, MIN_PT: MIN_PT, MAX_PT: MAX_PT
   };
 })();
 
@@ -365,7 +407,15 @@ var MNL = (function () {
   var esc = Site.esc;
   var store = Site.store;
 
-  var settings = Object.assign({ showNumber: true, nameStyle: 'report', offX: 0, offY: 0, outlines: false }, store.get('mnl.settings', {}));
+  var settings = Object.assign({
+    showNumber: true, nameStyle: 'report', offX: 0, offY: 0, outlines: false,
+    rotate: 0, numberAtBottom: false, lastNames: false, sep: '&', turnPreview: false
+  }, store.get('mnl.settings', {}));
+  if ([0, 90].indexOf(Number(settings.rotate)) === -1) settings.rotate = 0;
+  settings.rotate = Number(settings.rotate);
+  if (['&', '/'].indexOf(settings.sep) === -1) settings.sep = '&';
+  if (!MNL.STOCKS[settings.stock]) settings.stock = MNL.DEFAULT_STOCK;
+  function stock() { return MNL.getStock(settings.stock); }
   function saveSettings() { store.set('mnl.settings', settings); }
 
   var state = {
@@ -402,28 +452,71 @@ var MNL = (function () {
   function edit(nbr, i) { return state.edits.get(nbr + ':' + i) || {}; }
   function included(box, i) { var e = edit(box.nbr, i); return e.include !== undefined ? e.include : !MNL.isClosed(box.names[i].status); }
   function nameText(box, i) { var e = edit(box.nbr, i); return e.text != null ? e.text : styled(box.names[i]); }
+  /* A business entry reworded into "LAST, FIRST" form moves up with the people. */
+  function isPerson(box, i) {
+    var n = box.names[i], e = edit(box.nbr, i);
+    return !n.business || (e.text != null && MNL.looksLikePerson(e.text));
+  }
   function labelNames(box) {
-    var out = [];
-    box.names.forEach(function (n, i) { if (included(box, i)) { var t = nameText(box, i).replace(/\s+/g, ' ').trim(); if (t) out.push(t); } });
-    return out;
+    var people = [], businesses = [];
+    box.names.forEach(function (n, i) {
+      if (!included(box, i)) return;
+      var t = nameText(box, i).replace(/\s+/g, ' ').trim();
+      if (t) (isPerson(box, i) ? people : businesses).push(t);
+    });
+    return people.concat(businesses);
+  }
+
+  /* The first two different last names among the people printed on the label, in label order. */
+  function lastNamesFor(box) {
+    var out = [], seen = new Set();
+    box.names.forEach(function (n, i) {
+      if (!included(box, i) || !isPerson(box, i)) return;
+      var e = edit(box.nbr, i);
+      var last = MNL.lastNameOf(e.text != null ? e.text : n.raw);
+      var key = last.toUpperCase();
+      if (last && !seen.has(key)) { seen.add(key); out.push(last); }
+    });
+    var people = out.slice(0, 2);
+    return people;
+  }
+
+  function layoutOpts(box) {
+    var showNames = settings.showNumber && settings.lastNames;
+    return {
+      showNumber: !!settings.showNumber,
+      numberAtBottom: !!settings.numberAtBottom,
+      lastNames: showNames ? lastNamesFor(box) : [],
+      sep: settings.sep,
+      stock: settings.stock,
+      rotate: settings.rotate
+    };
   }
 
   var layoutCache = new Map();
   function layoutFor(box) {
-    var names = labelNames(box);
-    var key = box.nbr + '|' + (settings.showNumber ? 1 : 0) + '|' + names.join('\n');
+    var names = labelNames(box), opts = layoutOpts(box);
+    var key = box.nbr + '|' + JSON.stringify(opts) + '|' + names.join('\n');
     if (!layoutCache.has(key)) {
       if (layoutCache.size > 3000) layoutCache.clear();
-      layoutCache.set(key, MNL.layoutLabel(box.nbr, names, { showNumber: settings.showNumber }, measure));
+      layoutCache.set(key, MNL.layoutBox(box.nbr, names, opts, measure));
     }
     return layoutCache.get(key);
   }
   function selectedBoxes() { return boxes().filter(function (b) { return state.selected.has(b.nbr); }); }
+  /* One entry per physical label; a box that runs over gets several, in a row. */
   function plan() {
-    var labels = selectedBoxes().map(function (b) { return { box: b, lay: layoutFor(b) }; });
-    var place = MNL.paginate(labels.length, state.start);
+    var labels = [], boxCount = 0;
+    selectedBoxes().forEach(function (b) {
+      var lay = layoutFor(b);
+      boxCount++;
+      lay.parts.forEach(function (part, pi) {
+        labels.push({ box: b, lay: lay, part: part, index: pi, of: lay.parts.length });
+      });
+    });
+    var place = MNL.paginate(labels.length, state.start, stock().perSheet);
     var sheets = labels.length ? place[place.length - 1].sheet + 1 : 1;
-    return { labels: labels, place: place, sheets: sheets };
+    return { labels: labels, place: place, sheets: sheets, boxCount: boxCount };
   }
 
   /* ---------- Box list ---------- */
@@ -446,11 +539,9 @@ var MNL = (function () {
     var rows = b.names.map(function (n, i) {
       var e = edit(b.nbr, i); if (e.text != null || e.include !== undefined) edited = true;
       var on = included(b, i);
-      var odd = n.status && n.status !== b.status;
       return '<div class="name-row' + (on ? '' : ' is-off') + '">' +
         '<input type="checkbox" id="inc-' + b.nbr + '-' + i + '" data-inc="' + b.nbr + ':' + i + '"' + (on ? ' checked' : '') + ' aria-label="Print ' + esc(n.raw) + '">' +
         '<input class="field" type="text" id="txt-' + b.nbr + '-' + i + '" data-txt="' + b.nbr + ':' + i + '" value="' + esc(nameText(b, i)) + '" spellcheck="false" aria-label="Name as printed">' +
-        (odd ? '<span class="chip ' + statusClass(n.status) + '">' + esc(n.status) + '</span>' : '') +
         '</div>';
     }).join('');
     return rows + '<p class="names-foot"><span>Changes here apply to this label only.</span>' +
@@ -467,7 +558,6 @@ var MNL = (function () {
         '<span class="num">' + b.nbr + '</span>' +
         '<span class="who"><span class="who-first">' + esc(first) + '</span>' + (more > 0 ? '<span class="more">+' + more + '</span>' : '') + '</span>' +
       '</label>' +
-      '<span class="chip ' + statusClass(b.status) + '">' + esc(b.status || 'Unknown') + '</span>' +
       '<button type="button" class="toggle" data-toggle="' + b.nbr + '" aria-expanded="' + open + '" aria-controls="names-' + b.nbr + '" aria-label="Names in box ' + b.nbr + '">' + CHEVRON + '</button>' +
       '<div class="names" id="names-' + b.nbr + '"' + (open ? '' : ' hidden') + '>' + (open ? namesHtml(b) : '') + '</div>' +
       '</li>';
@@ -503,34 +593,47 @@ var MNL = (function () {
 
   /* ---------- Start position ---------- */
   function renderStart() {
-    var html = '';
-    for (var i = 1; i <= 8; i++) {
+    var st = stock(), html = '';
+    /* Button shape follows the label's proportions. */
+    $('start-grid').style.setProperty('--slot-h', Math.round(46 * st.label.h / st.label.w) + 'px');
+    for (var i = 1; i <= st.perSheet; i++) {
       var cls = i === state.start ? 'is-start' : (i < state.start ? 'is-used' : '');
       html += '<button type="button" role="radio" data-start="' + i + '" class="' + cls + '" aria-checked="' + (i === state.start) + '" aria-label="Start at label ' + i + (i < state.start ? ' (labels before it are used)' : '') + '">' + i + '</button>';
     }
     $('start-grid').innerHTML = html;
   }
-  function setStart(n) { state.start = Math.max(1, Math.min(8, n)); renderStart(); schedulePreview(true); }
+  function setStart(n) { state.start = Math.max(1, Math.min(stock().perSheet, n)); renderStart(); schedulePreview(true); }
 
   /* ---------- Sheet proofs ---------- */
   var P = 72;
   function f2(n) { return Math.round(n * 100) / 100; }
-  function slotContent(lay) {
-    return lay.runs.map(function (r) {
+  /* Turns the label's own frame into place on the sheet; matches MNL.toLabel. */
+  function rotTransform(rot) {
+    var L = stock().label;
+    if (rot === 90) return ' transform="translate(' + f2(L.w * P) + ' 0) rotate(90)"';
+    if (rot === -90) return ' transform="translate(0 ' + f2(L.h * P) + ') rotate(-90)"';
+    return '';
+  }
+  function slotContent(part) {
+    return part.runs.map(function (r) {
       if (r.kind === 'rule') return '<line class="rule" x1="' + f2(r.x * P) + '" y1="' + f2(r.y * P) + '" x2="' + f2((r.x + r.w) * P) + '" y2="' + f2(r.y * P) + '"/>';
       return '<text x="' + f2(r.x * P) + '" y="' + f2(r.y * P) + '" font-size="' + r.size + '"' + (r.bold ? ' font-weight="700"' : '') + '>' + esc(r.text) + '</text>';
     }).join('');
   }
   function sheetSvg(sheetIdx, bySlot, first) {
-    var L = MNL.LABEL, s = '<svg viewBox="0 0 612 792" role="img" aria-label="Sheet ' + (sheetIdx + 1) + ' preview">';
+    var st = stock(), L = st.label, s = '<svg viewBox="0 0 612 792" role="img" aria-label="Sheet ' + (sheetIdx + 1) + ' preview">';
     if (first) s += '<defs><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#ffffff"/><line x1="0" y1="0" x2="0" y2="7" stroke="#c3c8d2" stroke-width="2"/></pattern></defs>';
-    MNL.SLOTS.forEach(function (slot, i) {
+    st.slots.forEach(function (slot, i) {
       var item = bySlot[i], used = first && i < state.start - 1;
       var cls = 'slot' + (first ? ' pickable' : '') + (item && !item.lay.fits ? ' overflow' : '');
       s += '<g class="' + cls + '"' + (first ? ' data-slot="' + (i + 1) + '"' : '') + ' transform="translate(' + f2(slot.x * P) + ' ' + f2(slot.y * P) + ')">';
       s += '<rect class="die' + (used ? ' used-fill' : '') + '" width="' + f2(L.w * P) + '" height="' + f2(L.h * P) + '" rx="' + f2(L.r * P) + '"/>';
       if (used) s += '<text class="used-text" x="' + f2(L.w * P / 2) + '" y="' + f2(L.h * P / 2 + 4) + '" text-anchor="middle">ALREADY USED</text>';
-      else if (item) s += '<g class="ink">' + slotContent(item.lay) + '</g>';
+      else if (item) {
+        /* Outer group takes the print-only alignment shift; inner group carries the rotation. */
+        s += '<g class="ink"><g' + rotTransform(item.lay.rot) + '>' + slotContent(item.part) + '</g></g>';
+        if (item.index > 0) s += '<text class="cont" x="' + f2(L.w * P - 8) + '" y="' + f2(L.h * P - 6) + '" text-anchor="end">box ' + item.box.nbr + ', label ' + (item.index + 1) + ' of ' + item.of + '</text>';
+      }
       else s += '<text class="slot-no" x="' + f2(L.w * P - 12) + '" y="' + f2(L.h * P - 10) + '" text-anchor="end">' + (i + 1) + '</text>';
       s += '</g>';
     });
@@ -547,7 +650,7 @@ var MNL = (function () {
     for (var s = 0; s < p.sheets; s++) {
       var ranges = Object.keys(bySheet[s]).map(Number);
       var cap = ranges.length ? 'Labels ' + (Math.min.apply(null, ranges) + 1) + '–' + (Math.max.apply(null, ranges) + 1) : 'No labels';
-      html += '<div class="sheet' + (s >= MAX_SHEETS_SHOWN ? ' extra' : '') + '"><div class="sheet-cap"><span>Sheet ' + (s + 1) + ' of ' + p.sheets + '</span><span>' + cap + '</span></div>' + sheetSvg(s, bySheet[s], s === 0) + '</div>';
+      html += '<div class="sheet' + (s >= MAX_SHEETS_SHOWN ? ' extra' : '') + '"><div class="sheet-cap"><span>Sheet ' + (s + 1) + ' of ' + p.sheets + '</span><span>' + cap + '</span></div>' + '<div class="paper">' + sheetSvg(s, bySheet[s], s === 0) + '</div></div>';
     }
     if (p.sheets > MAX_SHEETS_SHOWN) html += '<p class="sheet-more">' + (p.sheets - MAX_SHEETS_SHOWN) + ' more sheets are not shown here, but they are in the PDF and print with the page.</p>';
     $('sheets').innerHTML = html;
@@ -559,13 +662,34 @@ var MNL = (function () {
     btn.disabled = !n;
     if (!n) { el.innerHTML = state.report ? 'Select boxes to fill the sheet.' : 'Load a Mailnames report to start.'; return; }
     var last = p.place[n - 1], nextFree = last.slot + 2;
-    var tight = p.labels.filter(function (l) { return !l.lay.fits; }).map(function (l) { return l.box.nbr; });
-    var empty = p.labels.filter(function (l) { return l.lay.empty; }).map(function (l) { return l.box.nbr; });
-    var parts = ['<strong>' + n + (n === 1 ? ' label' : ' labels') + '</strong> on <strong>' + p.sheets + (p.sheets === 1 ? ' sheet' : ' sheets') + '</strong>, starting at label ' + state.start + '.'];
-    parts.push(nextFree <= 8 ? 'Label ' + nextFree + ' is the next free one on the last sheet.' : 'The last sheet is used up.');
-    if (tight.length) parts.push('<br><span class="warn-text">Too many names to fit on box ' + tight.join(', ') + ' even at the smallest size. Untick or shorten some names.</span>');
+    var firsts = p.labels.filter(function (l) { return l.index === 0; });
+    var tight = firsts.filter(function (l) { return !l.lay.fits; }).map(function (l) { return l.box.nbr; });
+    var empty = firsts.filter(function (l) { return l.lay.empty; }).map(function (l) { return l.box.nbr; });
+    var overBoxes = firsts.filter(function (l) { return l.of > 1; });
+    var allOne = overBoxes.every(function (l) { return l.of === 2; });
+    var overText = '';
+    if (overBoxes.length === 1) {
+      var ob = overBoxes[0];
+      overText = 'Box ' + ob.box.nbr + ' runs onto ' + (ob.of === 2 ? 'an extra label.' : (ob.of - 1) + ' extra labels.');
+    } else if (overBoxes.length) {
+      overText = 'Boxes ' + listText(overBoxes.map(function (l) { return l.box.nbr + (allOne ? '' : ' (' + (l.of - 1) + ' extra)'); })) +
+        ' run onto ' + (allOne ? 'an extra label each.' : 'extra labels.');
+    }
+    var plural = function (k, one, many) { return k + ' ' + (k === 1 ? one : many); };
+    var lead = '<strong>' + plural(n, 'label', 'labels') + '</strong>' + (n !== p.boxCount ? ' for ' + plural(p.boxCount, 'box', 'boxes') : '') +
+      ' on <strong>' + plural(p.sheets, 'sheet', 'sheets') + '</strong>, starting at label ' + state.start + '.';
+    var parts = [lead];
+    parts.push(nextFree <= stock().perSheet ? 'Label ' + nextFree + ' is the next free one on the last sheet.' : 'The last sheet is used up.');
+    if (overText) parts.push('<br><span class="muted">' + overText + '</span>');
+    if (tight.length) parts.push('<br><span class="warn-text">A name on box ' + tight.join(', ') + ' is too long to fit on one label. Shorten it in the box\'s name list.</span>');
     if (empty.length) parts.push('<br><span class="muted">No names left to print on box ' + empty.join(', ') + '.</span>');
     el.innerHTML = parts.join(' ');
+  }
+
+  function listText(items) {
+    if (items.length <= 2) return items.join(' and ');
+    if (items.length > 8) return items.slice(0, 8).join(', ') + ' and ' + (items.length - 8) + ' more';
+    return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
   }
 
   var previewTimer = null;
@@ -576,26 +700,33 @@ var MNL = (function () {
 
   /* ---------- PDF ---------- */
   function buildPdf() {
-    var p = plan(), doc = new window.jspdf.jsPDF({ unit: 'in', format: 'letter', orientation: 'portrait' });
+    var p = plan(), st = stock(), doc = new window.jspdf.jsPDF({ unit: 'in', format: 'letter', orientation: 'portrait' });
     doc.setProperties({ title: 'Mailbox name labels', creator: 'Mailbox Name Labels' });
     for (var s = 0; s < p.sheets; s++) {
       if (s) doc.addPage('letter', 'portrait');
       if (settings.outlines) {
         doc.setDrawColor(150, 158, 196); doc.setLineWidth(0.75 / 72);
-        MNL.SLOTS.forEach(function (sl) { doc.roundedRect(sl.x, sl.y, MNL.LABEL.w, MNL.LABEL.h, MNL.LABEL.r, MNL.LABEL.r, 'S'); });
+        st.slots.forEach(function (sl) { doc.roundedRect(sl.x, sl.y, st.label.w, st.label.h, st.label.r, st.label.r, 'S'); });
       }
     }
     var ox = Number(settings.offX) || 0, oy = Number(settings.offY) || 0;
     p.labels.forEach(function (l, i) {
-      var pl = p.place[i], slot = MNL.SLOTS[pl.slot];
+      var pl = p.place[i], slot = st.slots[pl.slot], rot = l.lay.rot;
+      var at = function (x, y) { var q = MNL.toLabel(x, y, rot, st); return { x: slot.x + q.x + ox, y: slot.y + q.y + oy }; };
+      /* jsPDF turns text counter-clockwise for a positive angle. */
+      var angle = rot === 90 ? -90 : rot === -90 ? 90 : 0;
       doc.setPage(pl.sheet + 1);
-      l.lay.runs.forEach(function (r) {
-        var x = slot.x + r.x + ox, y = slot.y + r.y + oy;
-        if (r.kind === 'rule') { doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.6 / 72); doc.line(x, y, x + r.w, y); return; }
+      l.part.runs.forEach(function (r) {
+        if (r.kind === 'rule') {
+          var a = at(r.x, r.y), b = at(r.x + r.w, r.y);
+          doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.6 / 72); doc.line(a.x, a.y, b.x, b.y);
+          return;
+        }
+        var pt = at(r.x, r.y);
         doc.setFont('helvetica', r.bold ? 'bold' : 'normal');
         doc.setFontSize(r.size);
         doc.setTextColor(0, 0, 0);
-        doc.text(r.text, x, y, { baseline: 'alphabetic' });
+        doc.text(r.text, pt.x, pt.y, angle ? { baseline: 'alphabetic', angle: angle } : { baseline: 'alphabetic' });
       });
     });
     return { doc: doc, plan: p };
@@ -688,6 +819,31 @@ var MNL = (function () {
     $('off-x').value = settings.offX || 0;
     $('off-y').value = settings.offY || 0;
     $('outlines').checked = !!settings.outlines;
+    $(settings.rotate === 90 ? 'rot-r' : 'rot-0').checked = true;
+    syncTurn();
+    $('stock').value = settings.stock;
+    $('number-bottom').checked = !!settings.numberAtBottom;
+    $('last-names').checked = !!settings.lastNames;
+    $(settings.sep === '/' ? 'sep-slash' : 'sep-amp').checked = true;
+    syncDependents();
+  }
+  /* The turn button only appears while text is rotated; turning lays the on-screen sheets on their side. */
+  function syncTurn() {
+    var rotated = settings.rotate === 90, turned = rotated && !!settings.turnPreview;
+    $('sheet-tools').hidden = !rotated;
+    $('sheets').classList.toggle('turned', turned);
+    $('turn').setAttribute('aria-pressed', String(turned));
+    $('turn').textContent = turned ? 'Turn preview upright' : 'Turn preview sideways';
+  }
+  /* Number position and last names only mean something while the box number prints. */
+  function syncDependents() {
+    var num = !!settings.showNumber, names = num && !!settings.lastNames;
+    $('number-bottom').disabled = !num;
+    $('last-names').disabled = !num;
+    $('bottom-wrap').classList.toggle('is-disabled', !num);
+    $('last-wrap').classList.toggle('is-disabled', !num);
+    document.querySelectorAll('input[name="sep"]').forEach(function (r) { r.disabled = !names; });
+    $('sep-wrap').classList.toggle('is-disabled', !names);
   }
 
   $('file').addEventListener('change', function (e) { importFile(e.target.files[0]); e.target.value = ''; });
@@ -759,7 +915,34 @@ var MNL = (function () {
   });
   $('sheets').addEventListener('click', function (e) { var g = e.target.closest('[data-slot]'); if (g) setStart(Number(g.dataset.slot)); });
 
-  $('show-number').addEventListener('change', function (e) { settings.showNumber = e.target.checked; saveSettings(); schedulePreview(true); });
+  $('show-number').addEventListener('change', function (e) { settings.showNumber = e.target.checked; saveSettings(); syncDependents(); schedulePreview(true); });
+  document.querySelectorAll('input[name="rotate"]').forEach(function (r) {
+    r.addEventListener('change', function () { settings.rotate = Number(r.value); saveSettings(); syncTurn(); schedulePreview(true); });
+  });
+  /* A partly used sheet of one stock says nothing about the other, so switching starts at label 1. */
+  $('stock').addEventListener('change', function (e) {
+    if (!MNL.STOCKS[e.target.value]) return;
+    settings.stock = e.target.value; saveSettings(); sizeStockSelect(); setStart(1);
+  });
+  /* A select is as wide as its longest option; fit it to the one showing instead. */
+  var measureCtx = null;
+  function sizeStockSelect() {
+    var sel = $('stock'), cs = getComputedStyle(sel), opt = sel.options[sel.selectedIndex];
+    if (!opt) return;
+    measureCtx = measureCtx || document.createElement('canvas').getContext('2d');
+    measureCtx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    var spacing = parseFloat(cs.letterSpacing) || 0;
+    var w = measureCtx.measureText(opt.text).width + opt.text.length * spacing +
+      parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth) + 2;
+    sel.style.width = Math.ceil(w) + 'px';
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(sizeStockSelect);
+  $('turn').addEventListener('click', function () { settings.turnPreview = !settings.turnPreview; saveSettings(); syncTurn(); });
+  $('number-bottom').addEventListener('change', function (e) { settings.numberAtBottom = e.target.checked; saveSettings(); schedulePreview(true); });
+  $('last-names').addEventListener('change', function (e) { settings.lastNames = e.target.checked; saveSettings(); syncDependents(); schedulePreview(true); });
+  document.querySelectorAll('input[name="sep"]').forEach(function (r) {
+    r.addEventListener('change', function () { settings.sep = r.value; saveSettings(); schedulePreview(true); });
+  });
   document.querySelectorAll('input[name="style"]').forEach(function (r) {
     r.addEventListener('change', function () { settings.nameStyle = r.value; saveSettings(); renderList(); schedulePreview(true); });
   });
@@ -781,6 +964,7 @@ var MNL = (function () {
   $('download').addEventListener('click', function () { download().catch(function (e) { saveStatus('The PDF could not be made: ' + ((e && e.message) || 'unknown error'), true); }); });
 
   syncSettingsUI();
+  sizeStockSelect();
   applyPrintSettings();
   renderAll();
 

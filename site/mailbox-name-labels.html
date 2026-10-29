@@ -15,7 +15,13 @@
 <div class="wrap">
   <header class="masthead">
     <h1>Mailbox Name Labels</h1>
-    <span class="stock">8 per sheet · 3⅜ × 2⅓ in · Letter</span>
+    <div class="stock-pick">
+      <select id="stock" aria-label="Label sheet">
+        <option value="royal8">8 PER SHEET · 3⅜ × 2⅓ IN</option>
+        <option value="avery5164">AVERY 5164 · 6 PER SHEET · 4 × 3⅓ IN</option>
+      </select>
+      <svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
   </header>
 
   <div class="layout">
@@ -77,7 +83,7 @@
           </div>
           <div class="opts">
             <p class="group-label">On each label</p>
-            <label class="check"><input type="checkbox" id="show-number"> Box number at the top</label>
+            <label class="check"><input type="checkbox" id="show-number"> Box number</label>
             <div class="opt-line">
               <span>Names</span>
               <span class="seg" role="radiogroup" aria-label="Name order">
@@ -85,7 +91,7 @@
                 <label><input type="radio" name="style" id="style-first" value="first"><span>First Last</span></label>
               </span>
             </div>
-            <p class="help">Names marked closed in the report start unticked. Open a box in the list to untick or reword any name.</p>
+            <p class="help">Names print one per line at 10.5 to 12 pt. A box with more names than fit runs onto the next label, without the box number. Names marked closed in the report start unticked; open a box in the list to untick or reword any name.</p>
           </div>
         </div>
 
@@ -96,8 +102,31 @@
         <p id="save-status" class="small" role="status"></p>
 
         <details class="align" id="align">
-          <summary>Printer alignment</summary>
+          <summary>Advanced options</summary>
           <div class="align-body">
+           <div class="adv-section">
+            <p class="group-label">Label layout</p>
+            <div class="opt-line">
+              <span id="rot-label">Rotate text</span>
+              <span class="seg" role="radiogroup" aria-labelledby="rot-label">
+                <label><input type="radio" name="rotate" id="rot-0" value="0"><span>Off</span></label>
+                <label><input type="radio" name="rotate" id="rot-r" value="90"><span>90°</span></label>
+              </span>
+            </div>
+            <p class="help">Turns the text to read top to bottom along the label's long side. Turn the label the other way when placing it if you need it to read upward.</p>
+            <label class="check" id="bottom-wrap"><input type="checkbox" id="number-bottom"> Box number at the bottom</label>
+            <label class="check" id="last-wrap"><input type="checkbox" id="last-names"> First two last names beside the box number</label>
+            <div class="opt-line sub-opt" id="sep-wrap">
+              <span id="sep-label">Separated by</span>
+              <span class="seg" role="radiogroup" aria-labelledby="sep-label">
+                <label><input type="radio" name="sep" id="sep-amp" value="&amp;"><span class="mono">&amp;</span></label>
+                <label><input type="radio" name="sep" id="sep-slash" value="/"><span class="mono">/</span></label>
+              </span>
+            </div>
+            <p class="help">Last names come from the people on the label, skipping repeats. If two don't fit beside the number, only the first is shown.</p>
+           </div>
+           <div class="adv-section">
+            <p class="group-label">Printer alignment</p>
             <p class="help">Print the PDF at <strong>Actual size</strong> (100%), not Fit to page. Printing this page prints only the label sheets; set Margins to None and Scale to 100% if the print dialog offers them. To check alignment, tick outlines below, print one page on plain paper, and hold it behind a label sheet against a window.</p>
             <div class="nudges">
               <label class="nudge" for="off-x">Move right <input class="field mono" type="number" id="off-x" step="0.01" min="-0.5" max="0.5"> in</label>
@@ -105,10 +134,15 @@
             </div>
             <p class="help">Negative numbers move the text left or up. These apply to the PDF and to printing this page, and this browser remembers them.</p>
             <label class="check"><input type="checkbox" id="outlines"> Print label outlines (for a plain-paper test)</label>
+           </div>
           </div>
         </details>
       </div>
 
+      <div class="sheet-tools" id="sheet-tools" hidden>
+        <button type="button" class="btn" id="turn" aria-pressed="false">Turn preview sideways</button>
+        <span class="small muted">Only the preview turns. The PDF and printing stay as they are.</span>
+      </div>
       <div class="sheets" id="sheets" aria-live="polite"></div>
     </section>
   </div>
