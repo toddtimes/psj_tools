@@ -10,7 +10,7 @@ var MNL = (function () {
     return { id: id, name: name, size: size, label: label, cols: cols.length, slots: slots, perSheet: slots.length };
   }
   var STOCKS = {
-    royal8: stock('royal8', '8 per sheet', '3⅜ × 2⅓ in',
+    royal8: stock('royal8', 'NextDayLabels NDL1224', '3⅜ × 2⅓ in',
       { w: 3.4125, h: 2.3365, r: 0.13 }, [0.67, 4.4176], [0.5952, 3.0862, 5.5773, 8.0683]),
     avery5164: stock('avery5164', 'Avery 5164', '4 × 3⅓ in',
       { w: 4.0, h: 3.3333, r: 0.19 }, [0.1556, 4.3437], [0.5, 3.8326, 7.166])
