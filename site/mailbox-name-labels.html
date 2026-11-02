@@ -50,16 +50,16 @@
         <div class="picker-tools" id="picker-tools" hidden>
         <form class="quick" id="quick-form" autocomplete="off">
           <input class="field mono" id="quick" type="text" inputmode="numeric" placeholder="e.g. 101, 105, 120-130" aria-label="Box numbers to select">
-          <button class="btn" type="submit">Select</button>
+          <button class="btn" type="submit" id="quick-btn">Select</button>
         </form>
         <p class="small muted" id="quick-msg" role="status" hidden></p>
         <input class="field" id="search" type="search" placeholder="Search by box number or name" aria-label="Search boxes">
         <div class="filters" role="radiogroup" aria-label="Show">
           <label><input type="radio" name="filter" id="f-all" value="all" checked><span>All</span></label>
+          <label><input type="radio" name="filter" id="f-selected" value="selected"><span>Selected</span></label>
           <label><input type="radio" name="filter" id="f-current" value="current"><span>Current</span></label>
           <label><input type="radio" name="filter" id="f-pastdue" value="pastdue"><span>Past due</span></label>
           <label><input type="radio" name="filter" id="f-fwd" value="fwd"><span>Forwarding</span></label>
-          <label><input type="radio" name="filter" id="f-selected" value="selected"><span>Selected</span></label>
         </div>
         <div class="list-bar">
           <span class="muted" id="list-count"></span>

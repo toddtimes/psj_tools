@@ -580,7 +580,7 @@ var MNL = (function () {
     $('list').innerHTML = shown.length ? shown.map(rowHtml).join('') : '<li class="empty-list">' + emptyMsg + '</li>';
     $('list-count').textContent = shown.length === all.length ? all.length + ' boxes' : shown.length + ' of ' + all.length + ' boxes';
   }
-  function renderCount() { $('sel-count').textContent = state.selected.size; }
+  function renderCount() { $('sel-count').textContent = state.selected.size; syncQuickButton(); }
 
   /* ---------- Report card ---------- */
   function renderReport() {
@@ -806,16 +806,34 @@ var MNL = (function () {
     });
     return { singles: singles, ranged: ranged, bad: bad };
   }
-  function quickSelect(text) {
+  /* The boxes in the report that the typed numbers name, in order; singles not in the report are listed too. */
+  function quickTargets(text) {
     var parsed = parseNumbers(text), have = new Set(boxes().map(function (b) { return b.nbr; }));
-    var added = 0, missing = [];
+    var found = [], seen = new Set(), missing = [];
     parsed.singles.concat(parsed.ranged).forEach(function (n, i) {
-      if (have.has(n)) { if (!state.selected.has(n)) added++; state.selected.add(n); }
+      if (have.has(n)) { if (!seen.has(n)) { seen.add(n); found.push(n); } }
       else if (i < parsed.singles.length) missing.push(n);
     });
-    var msg = added ? 'Selected ' + added + (added === 1 ? ' box.' : ' boxes.') : 'No new boxes selected.';
-    if (missing.length) msg += ' Not in this report: ' + missing.slice(0, 12).join(', ') + (missing.length > 12 ? '…' : '') + '.';
-    if (parsed.bad.length) msg += ' Skipped “' + parsed.bad.join(' ') + '”.';
+    return { found: found, missing: missing, bad: parsed.bad };
+  }
+  /* The button unselects when every box the field names is already selected. */
+  function quickWouldUnselect(text) {
+    var found = quickTargets(text).found;
+    return found.length > 0 && found.every(function (n) { return state.selected.has(n); });
+  }
+  function syncQuickButton() {
+    $('quick-btn').textContent = quickWouldUnselect($('quick').value) ? 'Unselect' : 'Select';
+  }
+  function quickSelect(text) {
+    var t = quickTargets(text), unselect = quickWouldUnselect(text), changed = 0;
+    t.found.forEach(function (n) {
+      if (unselect) { state.selected.delete(n); changed++; }
+      else if (!state.selected.has(n)) { state.selected.add(n); changed++; }
+    });
+    var noun = changed === 1 ? ' box.' : ' boxes.';
+    var msg = unselect ? 'Unselected ' + changed + noun : changed ? 'Selected ' + changed + noun : 'No new boxes selected.';
+    if (t.missing.length) msg += ' Not in this report: ' + t.missing.slice(0, 12).join(', ') + (t.missing.length > 12 ? '…' : '') + '.';
+    if (t.bad.length) msg += ' Skipped “' + t.bad.join(' ') + '”.';
     var el = $('quick-msg'); el.textContent = msg; el.hidden = false;
     renderList(); renderCount(); schedulePreview(true);
   }
@@ -865,7 +883,8 @@ var MNL = (function () {
   window.addEventListener('dragover', function (e) { e.preventDefault(); });
   window.addEventListener('drop', function (e) { e.preventDefault(); if (!drop.contains(e.target) && e.dataTransfer.files[0]) importFile(e.dataTransfer.files[0]); });
 
-  $('quick-form').addEventListener('submit', function (e) { e.preventDefault(); var v = $('quick').value; if (v.trim()) { quickSelect(v); $('quick').value = ''; } });
+  $('quick-form').addEventListener('submit', function (e) { e.preventDefault(); var v = $('quick').value; if (v.trim()) { quickSelect(v); $('quick').value = ''; syncQuickButton(); } });
+  $('quick').addEventListener('input', syncQuickButton);
   $('search').addEventListener('input', function (e) { state.query = e.target.value; renderList(); });
   document.querySelectorAll('input[name="filter"]').forEach(function (r) { r.addEventListener('change', function () { state.filter = r.value; renderList(); }); });
   $('select-shown').addEventListener('click', function () { boxes().filter(matches).forEach(function (b) { state.selected.add(b.nbr); }); renderList(); renderCount(); schedulePreview(true); });
