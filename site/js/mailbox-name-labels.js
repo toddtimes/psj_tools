@@ -637,6 +637,7 @@ var MNL = (function () {
       var item = bySlot[i], used = first && i < state.start - 1;
       var cls = 'slot' + (first ? ' pickable' : '') + (item && !item.lay.fits ? ' overflow' : '');
       s += '<g class="' + cls + '"' + (first ? ' data-slot="' + (i + 1) + '"' : '') + ' transform="translate(' + f2(slot.x * P) + ' ' + f2(slot.y * P) + ')">';
+      if (first) s += '<title>Click to make label ' + (i + 1) + ' the first one printed</title>';
       s += '<rect class="die' + (used ? ' used-fill' : '') + '" width="' + f2(L.w * P) + '" height="' + f2(L.h * P) + '" rx="' + f2(L.r * P) + '"/>';
       if (used) s += '<text class="used-text" x="' + f2(L.w * P / 2) + '" y="' + f2(L.h * P / 2 + 4) + '" text-anchor="middle">ALREADY USED</text>';
       else if (item) {
