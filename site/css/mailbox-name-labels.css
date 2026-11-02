@@ -155,6 +155,8 @@ h2 { margin: 0; font: 700 18px/1.2 var(--font-display); letter-spacing: 0.02em; 
 @media (min-width: 640px) { .controls { grid-template-columns: auto minmax(0, 1fr); } }
 .group-label { font: 600 12px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); margin: 0 0 8px; }
 .start-grid { display: grid; grid-template-columns: repeat(2, 46px); gap: 5px; padding: 8px; background: var(--paper); border-radius: 4px; border: 1px solid var(--rule); width: max-content; }
+/* Kept about as wide as the grid above so the auto-sized column stays narrow. */
+.start-help { max-width: 24ch; margin-top: 8px; }
 .start-grid button {
   appearance: none; height: var(--slot-h, 32px); border: 1.5px solid var(--die); border-radius: 5px; background: #ffffff; color: #39414e;
   font: 600 13px var(--font-mono); cursor: pointer;
