@@ -670,7 +670,7 @@ var MNL = (function () {
 
   function renderSummary(p) {
     var n = p.labels.length, el = $('summary'), btn = $('download');
-    btn.disabled = !n;
+    btn.disabled = !n; $('print').disabled = !n;
     if (!n) { el.innerHTML = state.report ? 'Select boxes to fill the sheet.' : 'Load a Mailnames report to start.'; return; }
     var last = p.place[n - 1], nextFree = last.slot + 2;
     var firsts = p.labels.filter(function (l) { return l.index === 0; });
@@ -1001,6 +1001,8 @@ var MNL = (function () {
   $('off-x').addEventListener('change', function () { readOffset('off-x', 'offX'); });
   $('off-y').addEventListener('change', function () { readOffset('off-y', 'offY'); });
   $('outlines').addEventListener('change', function (e) { settings.outlines = e.target.checked; saveSettings(); applyPrintSettings(); });
+  /* Printing the page prints only the label sheets; the print stylesheet handles the rest. */
+  $('print').addEventListener('click', function () { window.print(); });
   $('download').addEventListener('click', function () { download().catch(function (e) { saveStatus('The PDF could not be made: ' + ((e && e.message) || 'unknown error'), true); }); });
 
   syncSettingsUI();
