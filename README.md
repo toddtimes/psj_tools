@@ -1,6 +1,6 @@
 # PostalMate® Micro Tools
 
-Small browser tools for shipping and mailbox stores that run PostalMate. Each one reads a report exported from PostalMate as a PDF and does the tedious part for you. They're live at **[tools.postsanjuan.com](https://tools.postsanjuan.com)**. PostalMate® is a registered trademark of PC Synergy, Inc.; this project is independent and not affiliated with or endorsed by PC Synergy.
+Small browser tools for shipping and mailbox stores that run PostalMate. Each one reads a report exported from PostalMate as a PDF and does the tedious part for you. They're live at **[tools.postsanjuan.com](https://tools.postsanjuan.com)**. PostalMate® is a registered trademark of Visible Supply Chain Management, LLC, and PostalMate is a product of PC Synergy, a Maersk company; this project is independent and not affiliated with or endorsed by any of them.
 
 | Tool | Reads | Gives you |
 |---|---|---|
