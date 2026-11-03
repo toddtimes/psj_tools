@@ -1,4 +1,4 @@
-# Post San Juan Tools
+# PostalMate Micro Tools
 
 Small browser tools for shipping and mailbox stores that run PostalMate. Each one reads a report exported from PostalMate as a PDF and does the tedious part for you. They're live at **[tools.postsanjuan.com](https://tools.postsanjuan.com)**.
 
