@@ -44,3 +44,5 @@ h2 { font-family: var(--font-label); font-weight: 600; font-size: 19px; margin: 
 
 footer { margin-top: 36px; color: var(--muted); font-size: 13px; max-width: 80ch; }
 footer p { margin: 0 0 6px; }
+
+h1 .reg { font-size: 0.45em; vertical-align: super; line-height: 0; margin-left: 1px; font-weight: 500; }
