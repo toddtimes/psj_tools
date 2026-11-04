@@ -495,18 +495,25 @@ var MNL = (function () {
     return people.concat(businesses);
   }
 
-  /* The first two different last names among the people printed on the label, in label order. */
+  /* Names that can supply a last name beside the box number: people who are printed. */
+  function headCandidates(box) {
+    var out = [];
+    box.names.forEach(function (n, i) { if (included(box, i) && isPerson(box, i)) out.push(i); });
+    return out;
+  }
+  function headPicked(box) { return headCandidates(box).filter(function (i) { return !!edit(box.nbr, i).head; }); }
+  /* Last names beside the box number: the ones picked in the list with the # buttons, else the
+     first two different last names among the people printed on the label, in label order. */
   function lastNamesFor(box) {
+    var picked = headPicked(box);
+    var lastOf = function (i) { var e = edit(box.nbr, i); return MNL.lastNameOf(e.text != null ? e.text : box.names[i].raw); };
+    if (picked.length) return picked.slice(0, 2).map(lastOf).filter(Boolean);
     var out = [], seen = new Set();
-    box.names.forEach(function (n, i) {
-      if (!included(box, i) || !isPerson(box, i)) return;
-      var e = edit(box.nbr, i);
-      var last = MNL.lastNameOf(e.text != null ? e.text : n.raw);
-      var key = last.toUpperCase();
+    headCandidates(box).forEach(function (i) {
+      var last = lastOf(i), key = last.toUpperCase();
       if (last && !seen.has(key)) { seen.add(key); out.push(last); }
     });
-    var people = out.slice(0, 2);
-    return people;
+    return out.slice(0, 2);
   }
 
   function layoutOpts(box) {
@@ -564,17 +571,30 @@ var MNL = (function () {
 
   var CHEVRON = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
+  /* The # button beside each person picks whose last name goes next to the box number; it only
+     shows while last names print, and locks once two are picked. */
+  function headPickHtml(b, i) {
+    var picked = headPicked(b), on = picked.indexOf(i) !== -1;
+    var can = included(b, i) && isPerson(b, i), full = picked.length >= 2 && !on;
+    var tip = !can ? 'Only people who are printed can go beside the box number'
+      : on ? 'Shown beside the box number; click to remove'
+      : full ? 'Two names are already picked' : 'Show this last name beside the box number';
+    return '<button type="button" class="head-pick" data-head="' + b.nbr + ':' + i + '" aria-pressed="' + on + '"' +
+      (can && !full ? '' : ' disabled') + ' title="' + tip + '" aria-label="Beside the box number: ' + esc(b.names[i].raw) + '">#</button>';
+  }
   function namesHtml(b) {
-    var edited = false;
+    var edited = false, picks = !!(settings.showNumber && settings.lastNames);
     var rows = b.names.map(function (n, i) {
-      var e = edit(b.nbr, i); if (e.text != null || e.include !== undefined) edited = true;
+      var e = edit(b.nbr, i); if (e.text != null || e.include !== undefined || e.head) edited = true;
       var on = included(b, i);
-      return '<div class="name-row' + (on ? '' : ' is-off') + '">' +
+      return '<div class="name-row' + (on ? '' : ' is-off') + (picks ? ' has-head' : '') + '">' +
         '<input type="checkbox" id="inc-' + b.nbr + '-' + i + '" data-inc="' + b.nbr + ':' + i + '"' + (on ? ' checked' : '') + ' aria-label="Print ' + esc(n.raw) + '">' +
         '<input class="field" type="text" id="txt-' + b.nbr + '-' + i + '" data-txt="' + b.nbr + ':' + i + '" value="' + esc(nameText(b, i)) + '" spellcheck="false" aria-label="Name as printed">' +
+        (picks ? headPickHtml(b, i) : '') +
         '</div>';
     }).join('');
-    return rows + '<p class="names-foot"><span>Changes here apply to this label only.</span>' +
+    var note = picks ? 'Changes here apply to this label only. # picks the last names beside the box number.' : 'Changes here apply to this label only.';
+    return rows + '<p class="names-foot"><span>' + note + '</span>' +
       (edited ? '<button type="button" class="linkish" data-reset="' + b.nbr + '">Undo changes</button>' : '') + '</p>';
   }
 
@@ -938,7 +958,8 @@ var MNL = (function () {
       var e1 = Object.assign({}, state.edits.get(t.dataset.inc) || {}, { include: t.checked });
       state.edits.set(t.dataset.inc, e1);
       t.closest('.name-row').classList.toggle('is-off', !t.checked);
-      refreshFoot(Number(t.dataset.inc.split(':')[0]));
+      var nbIn = Number(t.dataset.inc.split(':')[0]);
+      refreshFoot(nbIn); refreshPicks(nbIn);
       schedulePreview();
     }
   });
@@ -947,7 +968,8 @@ var MNL = (function () {
     if (!t.dataset.txt) return;
     var e1 = Object.assign({}, state.edits.get(t.dataset.txt) || {}, { text: t.value });
     state.edits.set(t.dataset.txt, e1);
-    refreshFoot(Number(t.dataset.txt.split(':')[0]));
+    var nbTx = Number(t.dataset.txt.split(':')[0]);
+    refreshFoot(nbTx); refreshPicks(nbTx);
     schedulePreview();
   });
   $('list').addEventListener('click', function (e) {
@@ -959,6 +981,17 @@ var MNL = (function () {
       panel.hidden = !open; tg.setAttribute('aria-expanded', String(open));
       return;
     }
+    var hp = e.target.closest('[data-head]');
+    if (hp) {
+      var cur = state.edits.get(hp.dataset.head) || {};
+      var e2 = Object.assign({}, cur, { head: !cur.head });
+      if (!e2.head) delete e2.head;
+      if (Object.keys(e2).length) state.edits.set(hp.dataset.head, e2); else state.edits.delete(hp.dataset.head);
+      var nbH = Number(hp.dataset.head.split(':')[0]);
+      refreshFoot(nbH); refreshPicks(nbH);
+      schedulePreview();
+      return;
+    }
     var rs = e.target.closest('[data-reset]');
     if (rs) {
       var nb = Number(rs.dataset.reset), bx = boxes().find(function (b) { return b.nbr === nb; });
@@ -967,6 +1000,14 @@ var MNL = (function () {
       schedulePreview(true);
     }
   });
+  /* Redraws a box's # buttons after a pick or a print toggle, so the pressed and locked states follow. */
+  function refreshPicks(nbr) {
+    var panel = $('names-' + nbr); if (!panel || !panel.querySelector('[data-head]')) return;
+    var box = boxes().find(function (b) { return b.nbr === nbr; });
+    panel.querySelectorAll('[data-head]').forEach(function (btn) {
+      btn.outerHTML = headPickHtml(box, Number(btn.dataset.head.split(':')[1]));
+    });
+  }
   function refreshFoot(nbr) {
     var panel = $('names-' + nbr); if (!panel) return;
     var foot = panel.querySelector('.names-foot');
@@ -982,7 +1023,7 @@ var MNL = (function () {
   });
   $('sheets').addEventListener('click', function (e) { var g = e.target.closest('[data-slot]'); if (g) setStart(Number(g.dataset.slot)); });
 
-  $('show-number').addEventListener('change', function (e) { settings.showNumber = e.target.checked; saveSettings(); syncDependents(); schedulePreview(true); });
+  $('show-number').addEventListener('change', function (e) { settings.showNumber = e.target.checked; saveSettings(); syncDependents(); renderList(); schedulePreview(true); });
   document.querySelectorAll('input[name="rotate"]').forEach(function (r) {
     r.addEventListener('change', function () { settings.rotate = Number(r.value); saveSettings(); syncTurn(); schedulePreview(true); });
   });
@@ -1006,7 +1047,7 @@ var MNL = (function () {
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(sizeStockSelect);
   $('turn').addEventListener('click', function () { settings.turnPreview = !settings.turnPreview; saveSettings(); syncTurn(); });
   $('number-bottom').addEventListener('change', function (e) { settings.numberAtBottom = e.target.checked; saveSettings(); schedulePreview(true); });
-  $('last-names').addEventListener('change', function (e) { settings.lastNames = e.target.checked; saveSettings(); syncDependents(); schedulePreview(true); });
+  $('last-names').addEventListener('change', function (e) { settings.lastNames = e.target.checked; saveSettings(); syncDependents(); renderList(); schedulePreview(true); });
   $('repeat').addEventListener('change', function (e) { settings.repeat = e.target.checked; saveSettings(); schedulePreview(true); });
   document.querySelectorAll('input[name="sep"]').forEach(function (r) {
     r.addEventListener('change', function () { settings.sep = r.value; saveSettings(); schedulePreview(true); });
