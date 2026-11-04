@@ -336,17 +336,29 @@ var MNL = (function () {
     };
   }
 
-  /* opts: { stock, showNumber, numberAtBottom, lastNames: [..], sep, rotate: 0 | 90 | -90, minPt }
-     rotate 90 turns the text clockwise (reads downward), -90 counter-clockwise (reads upward). */
+  /* With repeat on, the label is laid out in its top half and the same runs are repeated in the
+     bottom half, with a fold mark between, so the bottom copy can be folded over a shelf edge. */
+  function repeatParts(parts, H, W) {
+    return parts.map(function (part) {
+      var copy = part.runs.map(function (r) { return Object.assign({}, r, { y: r.y + H }); });
+      return { runs: part.runs.concat([{ kind: 'fold', y: H, w: W }], copy), count: part.count };
+    });
+  }
+
+  /* opts: { stock, showNumber, numberAtBottom, lastNames: [..], sep, rotate: 0 | 90 | -90, minPt, repeat }
+     rotate 90 turns the text clockwise (reads downward), -90 counter-clockwise (reads upward).
+     repeat prints the label twice, in its top and bottom halves, for folding over an edge. */
   function layoutBox(nbr, names, opts, measure) {
     var LABEL = getStock(opts.stock).label;
-    var rot = opts.rotate === 90 || opts.rotate === -90 ? opts.rotate : 0;
-    var W = rot ? LABEL.h : LABEL.w, H = rot ? LABEL.w : LABEL.h, width = W - PAD_X * 2;
+    var rot = opts.rotate === 90 || opts.rotate === -90 ? opts.rotate : 0, repeat = !!opts.repeat;
+    var W = rot ? LABEL.h : LABEL.w, fullH = rot ? LABEL.w : LABEL.h, width = W - PAD_X * 2;
+    var H = repeat ? fullH / 2 : fullH;
     var head = opts.showNumber ? headRuns(nbr, opts, W, H, measure) : null;
     var top1 = head ? head.top : PAD_TOP;
     var h1 = (head ? head.bottom : H - PAD_BOTTOM) - top1, h2 = H - PAD_TOP - PAD_BOTTOM;
-    var base = { rot: rot, W: W, H: H };
-    if (!names.length) return Object.assign(base, { size: 0, fits: true, empty: true, parts: [{ runs: head ? head.runs : [], count: 0 }] });
+    var base = { rot: rot, W: W, H: fullH, repeat: repeat };
+    var finish = function (parts) { return repeat ? repeatParts(parts, H, W) : parts; };
+    if (!names.length) return Object.assign(base, { size: 0, fits: true, empty: true, parts: finish([{ runs: head ? head.runs : [], count: 0 }]) });
 
     /* Fewest labels the names need at the smallest size, then the largest size that keeps that count. */
     var minPt = minPtOf(opts);
@@ -368,7 +380,7 @@ var MNL = (function () {
       });
       return { runs: runs, count: group.length };
     });
-    return Object.assign(base, { size: size, fits: !packed.over, parts: parts });
+    return Object.assign(base, { size: size, fits: !packed.over, parts: finish(parts) });
   }
 
   /* Maps a point in the label's own (possibly turned) frame to the label's frame on the sheet. */
@@ -417,7 +429,7 @@ var MNL = (function () {
 
   var settings = Object.assign({
     showNumber: true, nameStyle: 'report', offX: 0, offY: 0, outlines: false,
-    rotate: 0, numberAtBottom: false, lastNames: false, sep: '&', turnPreview: false, minPt: MNL.MIN_PT
+    rotate: 0, numberAtBottom: false, lastNames: false, sep: '&', turnPreview: false, minPt: MNL.MIN_PT, repeat: false
   }, store.get('mnl.settings', {}));
   if ([0, 90].indexOf(Number(settings.rotate)) === -1) settings.rotate = 0;
   settings.rotate = Number(settings.rotate);
@@ -499,7 +511,8 @@ var MNL = (function () {
       sep: settings.sep,
       stock: settings.stock,
       rotate: settings.rotate,
-      minPt: settings.minPt
+      minPt: settings.minPt,
+      repeat: !!settings.repeat
     };
   }
 
@@ -624,9 +637,14 @@ var MNL = (function () {
     if (rot === -90) return ' transform="translate(0 ' + f2(L.h * P) + ') rotate(-90)"';
     return '';
   }
+  var FOLD_TICK = 0.1; /* length of the fold marks at each edge, inches */
+  function foldLine(x1, x2, y) {
+    return '<line class="fold" x1="' + f2(x1 * P) + '" y1="' + f2(y * P) + '" x2="' + f2(x2 * P) + '" y2="' + f2(y * P) + '"/>';
+  }
   function slotContent(part) {
     return part.runs.map(function (r) {
       if (r.kind === 'rule') return '<line class="rule" x1="' + f2(r.x * P) + '" y1="' + f2(r.y * P) + '" x2="' + f2((r.x + r.w) * P) + '" y2="' + f2(r.y * P) + '"/>';
+      if (r.kind === 'fold') return foldLine(0, FOLD_TICK, r.y) + foldLine(r.w - FOLD_TICK, r.w, r.y);
       return '<text x="' + f2(r.x * P) + '" y="' + f2(r.y * P) + '" font-size="' + r.size + '"' + (r.bold ? ' font-weight="700"' : '') + '>' + esc(r.text) + '</text>';
     }).join('');
   }
@@ -731,6 +749,14 @@ var MNL = (function () {
         if (r.kind === 'rule') {
           var a = at(r.x, r.y), b = at(r.x + r.w, r.y);
           doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.6 / 72); doc.line(a.x, a.y, b.x, b.y);
+          return;
+        }
+        if (r.kind === 'fold') {
+          doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.5 / 72);
+          [[0, FOLD_TICK], [r.w - FOLD_TICK, r.w]].forEach(function (seg) {
+            var c = at(seg[0], r.y), d = at(seg[1], r.y);
+            doc.line(c.x, c.y, d.x, d.y);
+          });
           return;
         }
         var pt = at(r.x, r.y);
@@ -854,6 +880,7 @@ var MNL = (function () {
     $('stock').value = settings.stock;
     $('number-bottom').checked = !!settings.numberAtBottom;
     $('last-names').checked = !!settings.lastNames;
+    $('repeat').checked = !!settings.repeat;
     $(settings.sep === '/' ? 'sep-slash' : 'sep-amp').checked = true;
     syncDependents();
   }
@@ -971,6 +998,7 @@ var MNL = (function () {
   $('turn').addEventListener('click', function () { settings.turnPreview = !settings.turnPreview; saveSettings(); syncTurn(); });
   $('number-bottom').addEventListener('change', function (e) { settings.numberAtBottom = e.target.checked; saveSettings(); schedulePreview(true); });
   $('last-names').addEventListener('change', function (e) { settings.lastNames = e.target.checked; saveSettings(); syncDependents(); schedulePreview(true); });
+  $('repeat').addEventListener('change', function (e) { settings.repeat = e.target.checked; saveSettings(); schedulePreview(true); });
   document.querySelectorAll('input[name="sep"]').forEach(function (r) {
     r.addEventListener('change', function () { settings.sep = r.value; saveSettings(); schedulePreview(true); });
   });
