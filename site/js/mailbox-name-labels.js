@@ -315,20 +315,36 @@ var MNL = (function () {
     return Math.round(Math.max(MIN_PT_FLOOR, Math.min(MAX_PT, v)) * 2) / 2;
   }
 
-  /* Box number (and last names) as one line flush left, at the top or bottom, with a rule
-     between it and the names. Returns the runs and the name area left over. */
-  function headRuns(nbr, opts, W, H, measure) {
-    var num = String(nbr), numW = measure(num, NUM_PT, true), capH = NUM_PT * CAP / 72;
-    var availW = W - PAD_X * 2;
+  /* The box number (and up to two last names) as one line flush left, so the number sits in the
+     same spot on every label. Returns a function giving the runs for a baseline at y. */
+  function headLine(nbr, opts, W, measure) {
+    var num = String(nbr), numW = measure(num, NUM_PT, true), availW = W - PAD_X * 2;
     var names = (opts.lastNames || []).filter(Boolean);
     var tail = names.length ? fitHeadNames(names, opts.sep || '&', availW - numW - HEAD_GAP, minPtOf(opts), measure) : null;
-    var x = PAD_X; /* flush left, so the number sits in the same spot on every label */
-    var bottom = !!opts.numberAtBottom;
-    var base = bottom ? H - PAD_BOTTOM : PAD_TOP + capH;
-    var runs = [{ kind: 'num', text: num, x: x, y: base, size: NUM_PT, bold: true }];
-    if (tail) runs.push({ kind: 'head', text: tail.text, x: x + numW + HEAD_GAP, y: base, size: tail.size, bold: true });
+    return function (y) {
+      var runs = [{ kind: 'num', text: num, x: PAD_X, y: y, size: NUM_PT, bold: true }];
+      if (tail) runs.push({ kind: 'head', text: tail.text, x: PAD_X + numW + HEAD_GAP, y: y, size: tail.size, bold: true });
+      return runs;
+    };
+  }
+
+  /* The head line at the top or bottom of the label, with a rule between it and the names.
+     With repeat on, the line is printed twice, one directly above the other on the label's edge
+     side, with a fold mark between the two: fold there and one copy hangs over the shelf edge
+     facing forward while the other still reads from above. Returns the runs and the name area
+     left over. */
+  var FOLD_GAP = 0.09; /* space between the fold and the text on each side of it, inches */
+  function headRuns(nbr, opts, W, H, measure) {
+    var line = headLine(nbr, opts, W, measure), capH = NUM_PT * CAP / 72, bottom = !!opts.numberAtBottom;
+    var repeat = !!opts.repeat, extra = repeat ? capH + FOLD_GAP * 2 : 0;
+    var base = bottom ? H - PAD_BOTTOM - extra : PAD_TOP + capH + extra;
+    var runs = line(base);
+    if (repeat) {
+      var foldY = bottom ? base + FOLD_GAP : base - capH - FOLD_GAP;
+      runs = runs.concat([{ kind: 'fold', y: foldY, w: W }], line(bottom ? foldY + FOLD_GAP + capH : foldY - FOLD_GAP));
+    }
     var ruleY = bottom ? base - capH - RULE_ABOVE : base + RULE_BELOW;
-    runs.push({ kind: 'rule', x: PAD_X, y: ruleY, w: availW });
+    runs.push({ kind: 'rule', x: PAD_X, y: ruleY, w: W - PAD_X * 2 });
     return {
       runs: runs,
       top: bottom ? PAD_TOP : ruleY + RULE_ABOVE,
@@ -336,8 +352,9 @@ var MNL = (function () {
     };
   }
 
-  /* opts: { stock, showNumber, numberAtBottom, lastNames: [..], sep, rotate: 0 | 90 | -90, minPt }
-     rotate 90 turns the text clockwise (reads downward), -90 counter-clockwise (reads upward). */
+  /* opts: { stock, showNumber, numberAtBottom, lastNames: [..], sep, rotate: 0 | 90 | -90, minPt, repeat }
+     rotate 90 turns the text clockwise (reads downward), -90 counter-clockwise (reads upward).
+     repeat doubles the head line with a fold mark between (only while the box number prints). */
   function layoutBox(nbr, names, opts, measure) {
     var LABEL = getStock(opts.stock).label;
     var rot = opts.rotate === 90 || opts.rotate === -90 ? opts.rotate : 0;
@@ -345,7 +362,7 @@ var MNL = (function () {
     var head = opts.showNumber ? headRuns(nbr, opts, W, H, measure) : null;
     var top1 = head ? head.top : PAD_TOP;
     var h1 = (head ? head.bottom : H - PAD_BOTTOM) - top1, h2 = H - PAD_TOP - PAD_BOTTOM;
-    var base = { rot: rot, W: W, H: H };
+    var base = { rot: rot, W: W, H: H, repeat: !!(head && opts.repeat) };
     if (!names.length) return Object.assign(base, { size: 0, fits: true, empty: true, parts: [{ runs: head ? head.runs : [], count: 0 }] });
 
     /* Fewest labels the names need at the smallest size, then the largest size that keeps that count. */
@@ -417,7 +434,7 @@ var MNL = (function () {
 
   var settings = Object.assign({
     showNumber: true, nameStyle: 'report', offX: 0, offY: 0, outlines: false,
-    rotate: 0, numberAtBottom: false, lastNames: false, sep: '&', turnPreview: false, minPt: MNL.MIN_PT
+    rotate: 0, numberAtBottom: false, lastNames: false, sep: '&', turnPreview: false, minPt: MNL.MIN_PT, repeat: false
   }, store.get('mnl.settings', {}));
   if ([0, 90].indexOf(Number(settings.rotate)) === -1) settings.rotate = 0;
   settings.rotate = Number(settings.rotate);
@@ -499,7 +516,8 @@ var MNL = (function () {
       sep: settings.sep,
       stock: settings.stock,
       rotate: settings.rotate,
-      minPt: settings.minPt
+      minPt: settings.minPt,
+      repeat: !!settings.repeat
     };
   }
 
@@ -624,9 +642,14 @@ var MNL = (function () {
     if (rot === -90) return ' transform="translate(0 ' + f2(L.h * P) + ') rotate(-90)"';
     return '';
   }
+  var FOLD_TICK = 0.1; /* length of the fold marks at each edge, inches */
+  function foldLine(x1, x2, y) {
+    return '<line class="fold" x1="' + f2(x1 * P) + '" y1="' + f2(y * P) + '" x2="' + f2(x2 * P) + '" y2="' + f2(y * P) + '"/>';
+  }
   function slotContent(part) {
     return part.runs.map(function (r) {
       if (r.kind === 'rule') return '<line class="rule" x1="' + f2(r.x * P) + '" y1="' + f2(r.y * P) + '" x2="' + f2((r.x + r.w) * P) + '" y2="' + f2(r.y * P) + '"/>';
+      if (r.kind === 'fold') return foldLine(0, FOLD_TICK, r.y) + foldLine(r.w - FOLD_TICK, r.w, r.y);
       return '<text x="' + f2(r.x * P) + '" y="' + f2(r.y * P) + '" font-size="' + r.size + '"' + (r.bold ? ' font-weight="700"' : '') + '>' + esc(r.text) + '</text>';
     }).join('');
   }
@@ -731,6 +754,14 @@ var MNL = (function () {
         if (r.kind === 'rule') {
           var a = at(r.x, r.y), b = at(r.x + r.w, r.y);
           doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.6 / 72); doc.line(a.x, a.y, b.x, b.y);
+          return;
+        }
+        if (r.kind === 'fold') {
+          doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.5 / 72);
+          [[0, FOLD_TICK], [r.w - FOLD_TICK, r.w]].forEach(function (seg) {
+            var c = at(seg[0], r.y), d = at(seg[1], r.y);
+            doc.line(c.x, c.y, d.x, d.y);
+          });
           return;
         }
         var pt = at(r.x, r.y);
@@ -854,6 +885,7 @@ var MNL = (function () {
     $('stock').value = settings.stock;
     $('number-bottom').checked = !!settings.numberAtBottom;
     $('last-names').checked = !!settings.lastNames;
+    $('repeat').checked = !!settings.repeat;
     $(settings.sep === '/' ? 'sep-slash' : 'sep-amp').checked = true;
     syncDependents();
   }
@@ -872,6 +904,8 @@ var MNL = (function () {
     $('last-names').disabled = !num;
     $('bottom-wrap').classList.toggle('is-disabled', !num);
     $('last-wrap').classList.toggle('is-disabled', !num);
+    $('repeat').disabled = !num;
+    $('repeat-wrap').classList.toggle('is-disabled', !num);
     document.querySelectorAll('input[name="sep"]').forEach(function (r) { r.disabled = !names; });
     $('sep-wrap').classList.toggle('is-disabled', !names);
   }
@@ -971,6 +1005,7 @@ var MNL = (function () {
   $('turn').addEventListener('click', function () { settings.turnPreview = !settings.turnPreview; saveSettings(); syncTurn(); });
   $('number-bottom').addEventListener('change', function (e) { settings.numberAtBottom = e.target.checked; saveSettings(); schedulePreview(true); });
   $('last-names').addEventListener('change', function (e) { settings.lastNames = e.target.checked; saveSettings(); syncDependents(); schedulePreview(true); });
+  $('repeat').addEventListener('change', function (e) { settings.repeat = e.target.checked; saveSettings(); schedulePreview(true); });
   document.querySelectorAll('input[name="sep"]').forEach(function (r) {
     r.addEventListener('change', function () { settings.sep = r.value; saveSettings(); schedulePreview(true); });
   });
