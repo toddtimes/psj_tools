@@ -294,20 +294,19 @@ var MNL = (function () {
     return { parts: parts, over: over };
   }
 
-  /* Up to two last names beside the box number: both at the largest size that fits, down to
-     HEAD_MIN_PT (a rotated label is narrow, so this goes below the names' own floor), else the
-     first alone, else the first cut short. */
+  /* Up to two names beside the box number, at the largest size that fits down to HEAD_MIN_PT (a
+     rotated label is narrow, so this goes below the names' own floor). Still too long at the floor
+     and the line is cut short at the end with an ellipsis, so the second name keeps whatever room
+     is left rather than being dropped. There is no fixed character limit: the width decides. */
   function fitHeadNames(names, sep, width, measure) {
-    var tries = [names.slice(0, 2).join(' ' + sep + ' ')];
-    if (names.length > 1) tries.push(names[0]);
-    for (var t = 0; t < tries.length; t++) {
-      for (var s = NUM_PT; s >= HEAD_MIN_PT - 1e-9; s -= 0.5) {
-        if (measure(tries[t], s, true) <= width) return { text: tries[t], size: s };
-      }
+    var text = names.slice(0, 2).join(' ' + sep + ' ');
+    for (var s = NUM_PT; s >= HEAD_MIN_PT - 1e-9; s -= 0.5) {
+      if (measure(text, s, true) <= width) return { text: text, size: s };
     }
-    var text = names[0];
     while (text.length > 1 && measure(text + '…', HEAD_MIN_PT, true) > width) text = text.slice(0, -1);
-    return text.length > 1 ? { text: text.trim() + '…', size: HEAD_MIN_PT } : null;
+    text = text.trim();
+    if (text.slice(-1) === sep) text = text.slice(0, -1).trim(); /* don't end on a dangling "&" */
+    return text.length > 1 ? { text: text + '…', size: HEAD_MIN_PT } : null;
   }
 
   /* The smallest size names may shrink to, clamped to a sane range in half-point steps. */
