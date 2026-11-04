@@ -206,7 +206,6 @@ details.align summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 .sheet svg text { font-family: var(--font-label); fill: var(--paper-ink); }
 .sheet .die { fill: #ffffff; stroke: var(--die); stroke-width: 1; }
 .sheet .rule { stroke: var(--paper-ink); stroke-width: 0.6; }
-.sheet .fold { stroke: #b6bcc8; stroke-width: 0.5; }
 .sheet .used-fill { fill: url(#hatch); }
 .sheet .used-text { fill: #6a7280; font: 600 11px var(--font-mono); letter-spacing: .08em; }
 .sheet .slot-no { fill: #9aa1ad; font: 500 10px var(--font-mono); }
@@ -245,6 +244,5 @@ details.align summary { cursor: pointer; font-weight: 600; font-size: 14px; }
   .sheets .sheet .used-text, .sheets .sheet .slot-no, .sheets .sheet .cont { display: none; }
   .sheets .sheet svg text { fill: #000000; }
   .sheets .sheet .rule { stroke: #000000; }
-  .sheets .sheet .fold { stroke: #969696; }
   .sheets .sheet .ink { transform: translate(var(--print-ox, 0px), var(--print-oy, 0px)); }
 }
