@@ -232,6 +232,7 @@ var MNL = (function () {
   var LEAD = 1.2, NAME_GAP = 0.22;  /* line height and extra space between names, in ems */
   var CAP = 0.718;                  /* Helvetica cap height, in ems */
   var HEAD_GAP = 0.12;              /* space between the box number and the last names, inches */
+  var HEAD_MIN_PT = 8;              /* last names beside the number may shrink this far to fit both */
   var RULE_BELOW = 0.075, RULE_ABOVE = 0.085;
 
   /* Greedy word wrap. firstW is the first line's width, restW every later line's. */
@@ -293,19 +294,20 @@ var MNL = (function () {
     return { parts: parts, over: over };
   }
 
-  /* Up to two last names beside the box number: both at the largest size that fits, else the
+  /* Up to two last names beside the box number: both at the largest size that fits, down to
+     HEAD_MIN_PT (a rotated label is narrow, so this goes below the names' own floor), else the
      first alone, else the first cut short. */
-  function fitHeadNames(names, sep, width, minPt, measure) {
+  function fitHeadNames(names, sep, width, measure) {
     var tries = [names.slice(0, 2).join(' ' + sep + ' ')];
     if (names.length > 1) tries.push(names[0]);
     for (var t = 0; t < tries.length; t++) {
-      for (var s = NUM_PT; s >= minPt - 1e-9; s -= 0.5) {
+      for (var s = NUM_PT; s >= HEAD_MIN_PT - 1e-9; s -= 0.5) {
         if (measure(tries[t], s, true) <= width) return { text: tries[t], size: s };
       }
     }
     var text = names[0];
-    while (text.length > 1 && measure(text + '…', minPt, true) > width) text = text.slice(0, -1);
-    return text.length > 1 ? { text: text.trim() + '…', size: minPt } : null;
+    while (text.length > 1 && measure(text + '…', HEAD_MIN_PT, true) > width) text = text.slice(0, -1);
+    return text.length > 1 ? { text: text.trim() + '…', size: HEAD_MIN_PT } : null;
   }
 
   /* The smallest size names may shrink to, clamped to a sane range in half-point steps. */
@@ -320,7 +322,7 @@ var MNL = (function () {
   function headLine(nbr, opts, W, measure) {
     var num = String(nbr), numW = measure(num, NUM_PT, true), availW = W - PAD_X * 2;
     var names = (opts.lastNames || []).filter(Boolean);
-    var tail = names.length ? fitHeadNames(names, opts.sep || '&', availW - numW - HEAD_GAP, minPtOf(opts), measure) : null;
+    var tail = names.length ? fitHeadNames(names, opts.sep || '&', availW - numW - HEAD_GAP, measure) : null;
     return function (y) {
       var runs = [{ kind: 'num', text: num, x: PAD_X, y: y, size: NUM_PT, bold: true }];
       if (tail) runs.push({ kind: 'head', text: tail.text, x: PAD_X + numW + HEAD_GAP, y: y, size: tail.size, bold: true });
