@@ -495,25 +495,31 @@ var MNL = (function () {
     return people.concat(businesses);
   }
 
-  /* Names that can supply a last name beside the box number: people who are printed. */
+  /* Entries that can go beside the box number: anything printed on the label. */
   function headCandidates(box) {
     var out = [];
-    box.names.forEach(function (n, i) { if (included(box, i) && isPerson(box, i)) out.push(i); });
+    box.names.forEach(function (n, i) { if (included(box, i)) out.push(i); });
     return out;
   }
   function headPicked(box) { return headCandidates(box).filter(function (i) { return !!edit(box.nbr, i).head; }); }
-  /* Last names beside the box number: the ones picked in the list with the # buttons, else the
-     first two different last names among the people printed on the label, in label order. */
+  /* What an entry contributes beside the number: a person's last name, a business's whole name. */
+  function headTextOf(box, i) {
+    var t = nameText(box, i).replace(/\s+/g, ' ').trim();
+    return isPerson(box, i) ? MNL.lastNameOf(t) : t;
+  }
+  /* Names beside the box number: the ones picked in the list with the # buttons, else the first
+     two different last names among the people printed, else the first business. */
   function lastNamesFor(box) {
     var picked = headPicked(box);
-    var lastOf = function (i) { var e = edit(box.nbr, i); return MNL.lastNameOf(e.text != null ? e.text : box.names[i].raw); };
-    if (picked.length) return picked.slice(0, 2).map(lastOf).filter(Boolean);
-    var out = [], seen = new Set();
-    headCandidates(box).forEach(function (i) {
-      var last = lastOf(i), key = last.toUpperCase();
+    if (picked.length) return picked.slice(0, 2).map(function (i) { return headTextOf(box, i); }).filter(Boolean);
+    var out = [], seen = new Set(), all = headCandidates(box);
+    all.forEach(function (i) {
+      if (!isPerson(box, i)) return;
+      var last = headTextOf(box, i), key = last.toUpperCase();
       if (last && !seen.has(key)) { seen.add(key); out.push(last); }
     });
-    return out.slice(0, 2);
+    if (!out.length && all.length) out.push(headTextOf(box, all[0]));
+    return out.filter(Boolean).slice(0, 2);
   }
 
   function layoutOpts(box) {
@@ -571,14 +577,14 @@ var MNL = (function () {
 
   var CHEVRON = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-  /* The # button beside each person picks whose last name goes next to the box number; it only
-     shows while last names print, and locks once two are picked. */
+  /* The # button beside each entry picks what goes next to the box number (a person's last name or
+     a business's name); it only shows while last names print, and locks once two are picked. */
   function headPickHtml(b, i) {
     var picked = headPicked(b), on = picked.indexOf(i) !== -1;
-    var can = included(b, i) && isPerson(b, i), full = picked.length >= 2 && !on;
-    var tip = !can ? 'Only people who are printed can go beside the box number'
+    var can = included(b, i), full = picked.length >= 2 && !on;
+    var tip = !can ? 'Only names that are printed can go beside the box number'
       : on ? 'Shown beside the box number; click to remove'
-      : full ? 'Two names are already picked' : 'Show this last name beside the box number';
+      : full ? 'Two names are already picked' : (isPerson(b, i) ? 'Show this last name beside the box number' : 'Show this business beside the box number');
     return '<button type="button" class="head-pick" data-head="' + b.nbr + ':' + i + '" aria-pressed="' + on + '"' +
       (can && !full ? '' : ' disabled') + ' title="' + tip + '" aria-label="Beside the box number: ' + esc(b.names[i].raw) + '">#</button>';
   }
