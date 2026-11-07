@@ -893,7 +893,10 @@ var MNL = (function () {
     var msg = unselect ? 'Unselected ' + changed + noun : changed ? 'Selected ' + changed + noun : 'No new boxes selected.';
     if (t.missing.length) msg += ' Not in this report: ' + t.missing.slice(0, 12).join(', ') + (t.missing.length > 12 ? '…' : '') + '.';
     if (t.bad.length) msg += ' Skipped “' + t.bad.join(' ') + '”.';
+    var problem = t.missing.length > 0 || t.bad.length > 0;
     var el = $('quick-msg'); el.textContent = msg; el.hidden = false;
+    el.className = problem ? 'notice error' : 'small muted';
+    el.setAttribute('role', problem ? 'alert' : 'status');
     renderList(); renderCount(); schedulePreview(true);
   }
 
