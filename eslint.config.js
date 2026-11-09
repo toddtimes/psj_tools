@@ -42,7 +42,7 @@ export default [
     rules: siteRules
   },
   {
-    files: ['scripts/**/*.mjs', '*.js'],
+    files: ['scripts/**/*.mjs', 'tests/**/*.mjs', '*.js'],
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: globals.node }
   }
 ];

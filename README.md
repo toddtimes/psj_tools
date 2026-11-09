@@ -36,6 +36,7 @@ site/
   thumbs/                     index page screenshots
   _headers                    security headers, including the Content-Security-Policy
 scripts/check-site.mjs        site-specific lint checks
+tests/                        node --test unit tests; they load the pure parts of site/js without a browser
 ```
 
 Cloudflare deploys `site/` from the `main` branch. It runs `npm ci && npm run lint` first, and a failing lint stops the deploy. GitHub Actions runs the same lint on every push and pull request.
@@ -62,6 +63,7 @@ The pages must be served over HTTP. Opening the files directly (`file://`) break
 ```sh
 npm ci              # once, for the linters
 npm run lint        # HTML, JavaScript and site checks
+npm test            # unit tests for the pure layout code (node --test)
 python3 -m http.server -d site 8000   # then open http://localhost:8000
 ```
 
@@ -71,7 +73,7 @@ The local server doesn't send the `_headers` security headers, so a CSP problem 
 
 1. Add `site/<tool>.html`, `site/js/<tool>.js` and `site/css/<tool>.css`, following an existing tool. Load `lib/pdf-reader.js` and `lib/site.js` before the tool's script, then call `PdfReader.readPages(file)`, which returns the text items on each page.
 2. Link it from `site/index.html` with a thumbnail in `site/thumbs/` (a 1200×750 WebP). Lint fails if a tool page isn't linked.
-3. Add the same disclaimer footer the other tools have.
+3. End the page with the same `<p class="disclaimer">` the other tools have, inside `<main class="wrap">`.
 4. Run `npm run lint` and try it with real reports locally. Keep those reports outside the repo.
 
 ### Updating pdf.js, jsPDF and fonts

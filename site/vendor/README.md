@@ -20,4 +20,4 @@ jsPDF (used only to make the label PDF) supports far older browsers than pdf.js,
 
 Where the files come from: `pdfjs-dist/build/pdf.min.mjs` and `pdfjs-dist/build/pdf.worker.min.mjs`; `jspdf/dist/jspdf.umd.min.js`; fonts from each `@fontsource/<family>` package's `files/`, latin and latin-ext subsets only, woff2 only, with `fonts/fonts.css` built from the matching blocks in each package's `<weight>.css`. The weights in use are IBM Plex Sans 400/500/600, IBM Plex Mono 400/500/600, IBM Plex Sans Condensed 500/600, Barlow Semi Condensed 600/700 and Public Sans 400/500/600/700.
 
-To update: `npm install pdfjs-dist@latest jspdf@latest` in a scratch folder, run `npm audit`, copy the files above over these, run `npm run lint`, then load a real PostalMate PDF in each tool.
+To update: `npm install pdfjs-dist@latest jspdf@latest @fontsource/ibm-plex-sans@latest @fontsource/ibm-plex-mono@latest @fontsource/ibm-plex-sans-condensed@latest @fontsource/barlow-semi-condensed@latest @fontsource/public-sans@latest` in a scratch folder, run `npm audit`, copy the files above over these, run `npm run lint`, then load a real PostalMate PDF in each tool.

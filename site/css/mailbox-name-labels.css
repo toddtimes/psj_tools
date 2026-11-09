@@ -11,10 +11,7 @@
   --accent-soft: #dfecea;
   --sel: #eaf2f0;
   --warn: #7a4f00;     --warn-bg: #fbf0d6;    --warn-line: #e6cf94;
-  --ok: #1d6638;       --ok-soft: #e1f0e5;
-  --bad: #a02f28;      --bad-soft: #f7e3e1;
-  --fwd: #2d5889;      --fwd-wash: #dfe8f3;
-  --closed: #586966;   --closed-wash: #e3e8e6;
+  --bad: #a02f28;
   --paper: #ffffff;
   --paper-ink: #121212;
   --die: #8e98c4;
@@ -31,8 +28,7 @@
     --bg: #0f1514; --surface: #172020; --raised: #1e2928; --ink: #e5eeec; --muted: #9baba7; --line: #2a3836;
     --accent: #72c9bd; --accent-ink: #0c1b19; --accent-soft: #1c3430; --sel: #18302c;
     --warn: #e8c069; --warn-bg: #2b2412; --warn-line: #5a4a1f;
-    --ok: #82d19c; --ok-soft: #173023; --bad: #f08d83; --bad-soft: #351b19;
-    --fwd: #92b8e8; --fwd-wash: #1b2536; --closed: #9baba7; --closed-wash: #26322f;
+    --bad: #f08d83;
     --paper: #ffffff; --paper-ink: #121212; --die: #8e98c4; --hatch: #c3c8d2;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35);
     color-scheme: dark;
@@ -42,8 +38,7 @@
   --bg: #0f1514; --surface: #172020; --raised: #1e2928; --ink: #e5eeec; --muted: #9baba7; --line: #2a3836;
   --accent: #72c9bd; --accent-ink: #0c1b19; --accent-soft: #1c3430; --sel: #18302c;
   --warn: #e8c069; --warn-bg: #2b2412; --warn-line: #5a4a1f;
-  --ok: #82d19c; --ok-soft: #173023; --bad: #f08d83; --bad-soft: #351b19;
-  --fwd: #92b8e8; --fwd-wash: #1b2536; --closed: #9baba7; --closed-wash: #26322f;
+  --bad: #f08d83;
   --paper: #ffffff; --paper-ink: #121212; --die: #8e98c4; --hatch: #c3c8d2;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35);
   color-scheme: dark;
@@ -122,6 +117,7 @@ h2 { margin: 0; font: 700 18px/1.2 var(--font-display); letter-spacing: 0.02em; 
 .field { width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--raised); border-radius: 4px; padding: 7px 10px; }
 .field::placeholder { color: var(--muted); opacity: .8; }
 .quick .field { flex: 1 1 auto; }
+#quick-msg { margin: 0; }
 .filters { display: flex; flex-wrap: wrap; gap: 6px; }
 .filters input { position: absolute; opacity: 0; pointer-events: none; }
 .filters label { border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; font-size: 13px; cursor: pointer; background: var(--raised); user-select: none; }
