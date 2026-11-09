@@ -826,7 +826,7 @@ var MNL = (function () {
   function saveStatus(text, isError) {
     var el = $('save-status');
     el.textContent = text;
-    el.style.color = isError ? 'var(--pastdue)' : 'var(--ink-2)';
+    el.style.color = isError ? 'var(--bad)' : 'var(--muted)';
   }
 
   async function download() {
