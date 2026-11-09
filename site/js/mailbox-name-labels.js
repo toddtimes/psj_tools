@@ -231,6 +231,7 @@ var MNL = (function () {
   var NUM_PT = 19, MAX_PT = 12, MIN_PT = 10.5, MIN_PT_FLOOR = 6, STEP = 0.25, INDENT = 0.13;
   var LEAD = 1.2, NAME_GAP = 0.22;  /* line height and extra space between names, in ems */
   var CAP = 0.718;                  /* Helvetica cap height, in ems */
+  var DESC = 0.22;                  /* Helvetica descender, in ems */
   var HEAD_GAP = 0.12;              /* space between the box number and the last names, inches */
   var HEAD_MIN_PT = 8;              /* last names beside the number may shrink this far to fit both */
   var RULE_BELOW = 0.075, RULE_ABOVE = 0.085;
@@ -353,9 +354,12 @@ var MNL = (function () {
     };
   }
 
-  /* opts: { stock, showNumber, numberAtBottom, lastNames: [..], sep, rotate: 0 | 90 | -90, minPt, repeat }
+  /* opts: { stock, showNumber, numberAtBottom, lastNames: [..], sep, rotate: 0 | 90 | -90, minPt, repeat,
+              namesV: 'top' | 'bottom', namesH: 'left' | 'right' }
      rotate 90 turns the text clockwise (reads downward), -90 counter-clockwise (reads upward).
-     repeat doubles the head line with a fold mark between (only while the box number prints). */
+     repeat doubles the head line with a fold mark between (only while the box number prints).
+     namesV sets which end of the name area the names sit against, namesH which edge they line up
+     on; a wrapped name's later lines keep their indent on that same edge. */
   function layoutBox(nbr, names, opts, measure) {
     var LABEL = getStock(opts.stock).label;
     var rot = opts.rotate === 90 || opts.rotate === -90 ? opts.rotate : 0;
@@ -373,17 +377,25 @@ var MNL = (function () {
       var p = pack(names, s, width, h1, h2, measure);
       if (p.parts.length <= need) { size = s; packed = p; break; }
     }
-    var lh = size * LEAD / 72, gap = size * NAME_GAP / 72, asc = size * CAP / 72;
+    var lh = size * LEAD / 72, gap = size * NAME_GAP / 72, asc = size * CAP / 72, desc = size * DESC / 72;
+    var atBottom = opts.namesV === 'bottom', atRight = opts.namesH === 'right';
     var parts = packed.parts.map(function (group, pi) {
-      var runs = pi === 0 && head ? head.runs.slice() : [];
-      var y = (pi === 0 ? top1 : PAD_TOP) + asc;
+      var runs = pi === 0 && head ? head.runs.slice() : [], names = [];
+      var top = pi === 0 ? top1 : PAD_TOP, areaBottom = pi === 0 ? top1 + h1 : H - PAD_BOTTOM;
+      var y = top + asc;
       group.forEach(function (lines, ni) {
         lines.forEach(function (line, li) {
-          runs.push({ kind: 'name', text: line, x: PAD_X + (li ? INDENT : 0), y: y, size: size, bold: false });
+          var inset = PAD_X + (li ? INDENT : 0);
+          var x = atRight ? W - inset - measure(line, size) : inset;
+          names.push({ kind: 'name', text: line, x: x, y: y, size: size, bold: false });
           y += lh;
         });
         if (ni < group.length - 1) y += gap;
       });
+      /* Bottom-aligned names shift down as one block until the last descender meets the area's
+         bottom; a block too tall for the area stays put at the top. */
+      var shift = atBottom && names.length ? Math.max(0, areaBottom - desc - (y - lh)) : 0;
+      names.forEach(function (r) { r.y += shift; runs.push(r); });
       return { runs: runs, count: group.length };
     });
     return Object.assign(base, { size: size, fits: !packed.over, parts: parts });
@@ -435,11 +447,14 @@ var MNL = (function () {
 
   var settings = Object.assign({
     showNumber: true, nameStyle: 'report', offX: 0, offY: 0, outlines: false,
-    rotate: 0, numberAtBottom: false, lastNames: false, sep: '&', turnPreview: false, minPt: MNL.MIN_PT, repeat: false
+    rotate: 0, numberAtBottom: false, lastNames: false, sep: '&', turnPreview: false, minPt: MNL.MIN_PT, repeat: false,
+    namesV: 'top', namesH: 'left'
   }, store.get('mnl.settings', {}));
   if ([0, 90].indexOf(Number(settings.rotate)) === -1) settings.rotate = 0;
   settings.rotate = Number(settings.rotate);
   if (['&', '/'].indexOf(settings.sep) === -1) settings.sep = '&';
+  if (['top', 'bottom'].indexOf(settings.namesV) === -1) settings.namesV = 'top';
+  if (['left', 'right'].indexOf(settings.namesH) === -1) settings.namesH = 'left';
   if (!MNL.STOCKS[settings.stock]) settings.stock = MNL.DEFAULT_STOCK;
   settings.minPt = MNL.minPtOf(settings);
   function stock() { return MNL.getStock(settings.stock); }
@@ -531,7 +546,9 @@ var MNL = (function () {
       stock: settings.stock,
       rotate: settings.rotate,
       minPt: settings.minPt,
-      repeat: !!settings.repeat
+      repeat: !!settings.repeat,
+      namesV: settings.namesV,
+      namesH: settings.namesH
     };
   }
 
@@ -638,7 +655,7 @@ var MNL = (function () {
     if (!r) { meta.hidden = true; meta.innerHTML = ''; return; }
     var rows = [];
     if (r.store.length) rows.push(['Store', r.store.slice(0, 2).join(' · ')]);
-    if (r.printed) rows.push(['Printed', r.printed]);
+    if (r.printed) rows.push(['Exported', r.printed]);
     var entries = r.boxes.reduce(function (s, b) { return s + b.names.length; }, 0);
     rows.push(['Read', r.boxes.length + ' boxes, ' + entries + ' names and businesses']);
     if (r.warnings.length) rows.push(['Check', r.warnings.slice(0, 3).join('; ') + (r.warnings.length > 3 ? ' and ' + (r.warnings.length - 3) + ' more' : '')]);
@@ -913,7 +930,9 @@ var MNL = (function () {
     $(settings.rotate === 90 ? 'rot-r' : 'rot-0').checked = true;
     syncTurn();
     $('stock').value = settings.stock;
-    $('number-bottom').checked = !!settings.numberAtBottom;
+    $(settings.numberAtBottom ? 'numpos-bottom' : 'numpos-top').checked = true;
+    $('names-' + settings.namesV).checked = true;
+    $('names-' + settings.namesH).checked = true;
     $('last-names').checked = !!settings.lastNames;
     $('repeat').checked = !!settings.repeat;
     $(settings.sep === '/' ? 'sep-slash' : 'sep-amp').checked = true;
@@ -930,7 +949,7 @@ var MNL = (function () {
   /* Number position and last names only mean something while the box number prints. */
   function syncDependents() {
     var num = !!settings.showNumber, names = num && !!settings.lastNames;
-    $('number-bottom').disabled = !num;
+    document.querySelectorAll('input[name="numpos"]').forEach(function (r) { r.disabled = !num; });
     $('last-names').disabled = !num;
     $('bottom-wrap').classList.toggle('is-disabled', !num);
     $('last-wrap').classList.toggle('is-disabled', !num);
@@ -1054,7 +1073,15 @@ var MNL = (function () {
   }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(sizeStockSelect);
   $('turn').addEventListener('click', function () { settings.turnPreview = !settings.turnPreview; saveSettings(); syncTurn(); });
-  $('number-bottom').addEventListener('change', function (e) { settings.numberAtBottom = e.target.checked; saveSettings(); schedulePreview(true); });
+  document.querySelectorAll('input[name="numpos"]').forEach(function (r) {
+    r.addEventListener('change', function () { settings.numberAtBottom = r.value === 'bottom'; saveSettings(); schedulePreview(true); });
+  });
+  document.querySelectorAll('input[name="names-v"]').forEach(function (r) {
+    r.addEventListener('change', function () { settings.namesV = r.value; saveSettings(); schedulePreview(true); });
+  });
+  document.querySelectorAll('input[name="names-h"]').forEach(function (r) {
+    r.addEventListener('change', function () { settings.namesH = r.value; saveSettings(); schedulePreview(true); });
+  });
   $('last-names').addEventListener('change', function (e) { settings.lastNames = e.target.checked; saveSettings(); syncDependents(); renderList(); schedulePreview(true); });
   $('repeat').addEventListener('change', function (e) { settings.repeat = e.target.checked; saveSettings(); schedulePreview(true); });
   document.querySelectorAll('input[name="sep"]').forEach(function (r) {
