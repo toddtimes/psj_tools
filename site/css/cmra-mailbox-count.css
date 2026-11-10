@@ -19,20 +19,6 @@
   --font-label: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", system-ui, sans-serif;
   --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0f1514; --surface: #172020; --ink: #e5eeec; --muted: #9baba7; --line: #2a3836;
-    --accent: #72c9bd; --accent-ink: #0c1b19; --accent-soft: #1c3430;
-    --warn: #e8c069; --warn-bg: #2b2412; --warn-line: #5a4a1f; --ok: #82d19c; --ok-soft: #173023; --bad: #f08d83; --bad-soft: #351b19;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0f1514; --surface: #172020; --ink: #e5eeec; --muted: #9baba7; --line: #2a3836;
-  --accent: #72c9bd; --accent-ink: #0c1b19; --accent-soft: #1c3430;
-  --warn: #e8c069; --warn-bg: #2b2412; --warn-line: #5a4a1f; --ok: #82d19c; --ok-soft: #173023; --bad: #f08d83; --bad-soft: #351b19;
-  color-scheme: dark;
-}
 
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
