@@ -66,8 +66,8 @@ h2 { margin: 0; font: 700 18px/1.2 var(--font-display); letter-spacing: 0.02em; 
 
 /* Report import */
 .drop {
-  border: 1.5px dashed var(--line); border-radius: 8px; padding: 14px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  background: var(--raised); transition: border-color .15s, background .15s;
+  border: 1px dashed var(--muted); border-radius: 6px; padding: 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: var(--surface); transition: border-color .15s, background .15s;
 }
 .drop.is-over { border-color: var(--accent); background: var(--accent-soft); }
 .drop-text { flex: 1 1 200px; min-width: 0; }
@@ -86,7 +86,8 @@ h2 { margin: 0; font: 700 18px/1.2 var(--font-display); letter-spacing: 0.02em; 
   border-radius: 4px; padding: 6px 12px; font-weight: 500; font-size: 14px; cursor: pointer; white-space: nowrap;
 }
 .btn:hover { border-color: var(--accent); }
-.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); padding: 9px 18px; font-size: 15px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.go-actions .btn.primary { padding: 9px 18px; font-size: 15px; }
 .btn.primary:hover { filter: brightness(1.06); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .linkish { appearance: none; border: 0; background: none; padding: 0; color: var(--accent); font-weight: 600; cursor: pointer; font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
