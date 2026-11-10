@@ -11,10 +11,11 @@ Check for updates and security advisories every 3 months.
 
 pdf.js is the modern build, not the legacy one, so it needs current browsers. It calls new JavaScript built-ins without fallbacks. Two places handle that:
 
+- `lib/pdf-polyfills.mjs` fills in `Map.prototype.getOrInsert`/`getOrInsertComputed` and ReadableStream async iteration (`values()` and `[Symbol.asyncIterator]`), which Safari lacks through at least 26.6 and which pdf.js uses in `getTextContent`. Without that one, every PDF fails on Safari and on every iOS browser with "undefined is not a function (near '...t of e...')". `tests/pdf-polyfills.test.mjs` covers it.
 - `lib/pdf-reader.js` checks for `Promise.try`, `Promise.withResolvers` and `Uint8Array.prototype.toHex`. Without them it tells the visitor their browser is too old, both when the page opens and when a file is dropped. Those three set the minimum versions stated on the index page and in the top-level README (Chrome/Edge 140, Firefox 134, Safari 18.2). Keep all three places in step.
 - `lib/pdf-polyfills.mjs` supplies exact fallbacks for simpler built-ins (currently Map/WeakMap `getOrInsert` and `getOrInsertComputed`), on the page and in the worker. The worker loads through `lib/pdf-worker.mjs` so the fallbacks run before pdf.js does.
 
-After a pdf.js update, check the [pdf.js release notes](https://github.com/mozilla/pdf.js/releases) for changes to the supported browsers. Then test in the oldest browser versions stated, or remove the newest built-ins in a current browser and read a real report. Either add a fallback or raise the stated minimums.
+After a pdf.js update, check the [pdf.js release notes](https://github.com/mozilla/pdf.js/releases) for changes to the supported browsers. Then test in Safari (every iOS browser is Safari underneath) and in the oldest browser versions stated, or remove the newest built-ins in a current browser and read a real report. Either add a fallback or raise the stated minimums.
 
 jsPDF (used only to make the label PDF) supports far older browsers than pdf.js, so it doesn't affect the minimums.
 

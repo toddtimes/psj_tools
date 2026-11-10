@@ -7,7 +7,8 @@
     "lint": "npm run lint:html && npm run lint:js && npm run lint:site",
     "lint:html": "html-validate \"site/*.html\"",
     "lint:js": "eslint",
-    "lint:site": "node scripts/check-site.mjs"
+    "lint:site": "node scripts/check-site.mjs",
+    "test": "node --test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
