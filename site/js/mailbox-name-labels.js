@@ -826,7 +826,7 @@ var MNL = (function () {
   function saveStatus(text, isError) {
     var el = $('save-status');
     el.textContent = text;
-    el.style.color = isError ? 'var(--pastdue)' : 'var(--ink-2)';
+    el.style.color = isError ? 'var(--bad)' : 'var(--muted)';
   }
 
   async function download() {
@@ -908,12 +908,12 @@ var MNL = (function () {
     });
     var noun = changed === 1 ? ' box.' : ' boxes.';
     var msg = unselect ? 'Unselected ' + changed + noun : changed ? 'Selected ' + changed + noun : 'No new boxes selected.';
-    if (t.missing.length) msg += ' Not in this report: ' + t.missing.slice(0, 12).join(', ') + (t.missing.length > 12 ? '…' : '') + '.';
-    if (t.bad.length) msg += ' Skipped “' + t.bad.join(' ') + '”.';
-    var problem = t.missing.length > 0 || t.bad.length > 0;
+    var problems = [];
+    if (t.missing.length) problems.push('Not in this report: ' + t.missing.slice(0, 12).join(', ') + (t.missing.length > 12 ? '…' : '') + '.');
+    if (t.bad.length) problems.push('Skipped “' + t.bad.join(' ') + '”.');
+    /* Two live regions: the result is a quiet status, the problems a red alert that screen readers announce at once. */
     var el = $('quick-msg'); el.textContent = msg; el.hidden = false;
-    el.className = problem ? 'notice error' : 'small muted';
-    el.setAttribute('role', problem ? 'alert' : 'status');
+    var err = $('quick-error'); err.textContent = problems.join(' '); err.hidden = !problems.length;
     renderList(); renderCount(); schedulePreview(true);
   }
 
@@ -951,7 +951,7 @@ var MNL = (function () {
     var num = !!settings.showNumber, names = num && !!settings.lastNames;
     document.querySelectorAll('input[name="numpos"]').forEach(function (r) { r.disabled = !num; });
     $('last-names').disabled = !num;
-    $('bottom-wrap').classList.toggle('is-disabled', !num);
+    $('numpos-wrap').classList.toggle('is-disabled', !num);
     $('last-wrap').classList.toggle('is-disabled', !num);
     $('repeat').disabled = !num;
     $('repeat-wrap').classList.toggle('is-disabled', !num);

@@ -12,7 +12,7 @@
 </head>
 <body>
 
-<div class="wrap">
+<main class="wrap">
   <header class="masthead">
     <h1>Mailbox Name Labels</h1>
     <div class="stock-pick">
@@ -36,7 +36,7 @@
             <strong id="drop-title">Drop the Mailnames Report PDF here</strong>
             <span class="small muted" id="drop-sub">Active Mailboxes Only, sorted by mailbox number. The file is read in this browser and never uploaded.</span>
           </div>
-          <span class="btn file-btn"><span id="file-btn-text">Choose PDF</span><input type="file" id="file" accept="application/pdf,.pdf" aria-label="Choose the Mailnames report PDF"></span>
+          <span class="btn primary file-btn"><span id="file-btn-text">Choose PDF</span><input type="file" id="file" accept="application/pdf,.pdf" aria-label="Choose the Mailnames report PDF"></span>
         </div>
         <dl class="report-meta" id="report-meta" hidden></dl>
         <p class="notice error" id="import-error" role="alert" hidden></p>
@@ -53,6 +53,7 @@
           <button class="btn" type="submit" id="quick-btn">Select</button>
         </form>
         <p class="small muted" id="quick-msg" role="status" hidden></p>
+        <p class="notice error" id="quick-error" role="alert" hidden></p>
         <input class="field" id="search" type="search" placeholder="Search by box number or name" aria-label="Search boxes">
         <div class="filters" role="radiogroup" aria-label="Show">
           <label><input type="radio" name="filter" id="f-all" value="all" checked><span>All</span></label>
@@ -120,15 +121,8 @@
             <p class="help">Turns the text to read top to bottom along the label's long side. Turn the label the other way when placing it if you need it to read upward.</p>
             <label class="nudge" for="min-pt">Smallest name size <input class="field mono" type="number" id="min-pt" value="10.5" step="0.5" min="6" max="12"> pt</label>
             <p class="help">Names shrink no smaller than this before running onto another label. 10.5 pt is the default; 6 to 12 pt allowed.</p>
-            <div class="opt-line" id="bottom-wrap">
-              <span id="numpos-label">Box number</span>
-              <span class="seg" role="radiogroup" aria-labelledby="numpos-label">
-                <label><input type="radio" name="numpos" id="numpos-top" value="top"><span>Top</span></label>
-                <label><input type="radio" name="numpos" id="numpos-bottom" value="bottom"><span>Bottom</span></label>
-              </span>
-            </div>
             <div class="opt-line">
-              <span id="names-align-label">Names</span>
+              <span>Names</span>
               <span class="seg" role="radiogroup" aria-label="Names at the top or bottom">
                 <label><input type="radio" name="names-v" id="names-top" value="top"><span>Top</span></label>
                 <label><input type="radio" name="names-v" id="names-bottom" value="bottom"><span>Bottom</span></label>
@@ -138,7 +132,18 @@
                 <label><input type="radio" name="names-h" id="names-right" value="right"><span>Right</span></label>
               </span>
             </div>
-            <p class="help">The box number sits at the top or bottom of the label, always flush left. Names fill the space it leaves: Top or Bottom sets which end of that space they sit against, Left or Right which edge they line up on.</p>
+            <p class="help">Names fill the space the box number leaves. Top or Bottom sets which end of that space they sit against, Left or Right which edge they line up on.</p>
+           </div>
+           <div class="adv-section">
+            <p class="group-label">Box number</p>
+            <div class="opt-line" id="numpos-wrap">
+              <span id="numpos-label">Position</span>
+              <span class="seg" role="radiogroup" aria-labelledby="numpos-label">
+                <label><input type="radio" name="numpos" id="numpos-top" value="top"><span>Top</span></label>
+                <label><input type="radio" name="numpos" id="numpos-bottom" value="bottom"><span>Bottom</span></label>
+              </span>
+            </div>
+            <p class="help">The box number line prints at the top or bottom of the label, always flush left, with a rule between it and the names.</p>
             <label class="check" id="last-wrap"><input type="checkbox" id="last-names"> First two last names beside the box number</label>
             <div class="opt-line sub-opt" id="sep-wrap">
               <span id="sep-label">Separated by</span>
@@ -174,7 +179,7 @@
   </div>
 
   <p class="disclaimer">Provided free and as-is, with no warranty of any kind. These tools read PostalMate reports in your browser; always check the results against the original reports before relying on them for USPS, tax or other filings. <a href="./">All tools</a></p>
-</div>
+</main>
 
 <script src="lib/pdf-reader.js"></script>
 <script src="lib/site.js"></script>

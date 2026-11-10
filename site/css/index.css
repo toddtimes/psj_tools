@@ -11,18 +11,6 @@
   --font-label: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", system-ui, sans-serif;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0f1514; --surface: #172020; --ink: #e5eeec; --muted: #9baba7; --line: #2a3836;
-    --accent: #72c9bd; --accent-soft: #1c3430;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0f1514; --surface: #172020; --ink: #e5eeec; --muted: #9baba7; --line: #2a3836;
-  --accent: #72c9bd; --accent-soft: #1c3430;
-  color-scheme: dark;
-}
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
