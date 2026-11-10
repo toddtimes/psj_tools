@@ -18,7 +18,7 @@
   --hatch: #c3c8d2;
   --shadow: 0 1px 2px rgb(21 33 31 / 0.08), 0 6px 18px rgb(21 33 31 / 0.08);
   color-scheme: light;
-  --font-display: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", system-ui, sans-serif;
   --font-body: "Public Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --font-label: Helvetica, Arial, "Liberation Sans", "Nimbus Sans", sans-serif;
@@ -39,7 +39,7 @@ button, input { font: inherit; color: inherit; }
 
 /* Header */
 .masthead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 20px; }
-h1 { margin: 0; font: 700 30px/1.1 var(--font-display); letter-spacing: 0.01em; text-wrap: balance; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 28px; line-height: 1.15; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
 /* Label sheet dropdown: a native select dressed as a light mono button. */
 .stock-pick { position: relative; display: inline-flex; max-width: 100%; }
 .stock-pick select {
@@ -59,7 +59,7 @@ h1 { margin: 0; font: 700 30px/1.1 var(--font-display); letter-spacing: 0.01em; 
 .pane { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-h2 { margin: 0; font: 700 18px/1.2 var(--font-display); letter-spacing: 0.02em; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 18px; margin: 0; text-wrap: balance; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
