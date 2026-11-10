@@ -14,10 +14,10 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
-.wrap { max-width: 1080px; margin: 0 auto; padding: 40px max(16px, env(safe-area-inset-left, 0px)) 64px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 28px max(16px, env(safe-area-inset-left, 0px)) 64px; }
 
 header { margin-bottom: 28px; }
-h1 { font-family: var(--font-label); font-weight: 600; font-size: 32px; line-height: 1.15; margin: 0; letter-spacing: -0.01em; }
+h1 { font-family: var(--font-label); font-weight: 600; font-size: 28px; line-height: 1.15; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
 .lede { margin: 6px 0 0; color: var(--muted); max-width: 64ch; }
 
 .tools { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
