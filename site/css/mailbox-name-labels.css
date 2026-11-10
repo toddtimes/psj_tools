@@ -31,7 +31,7 @@ body {
   font: 15px/1.5 var(--font-body);
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 20px 40px;
+  padding-block: 28px 40px;
 }
 .wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 button, input { font: inherit; color: inherit; }
