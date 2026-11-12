@@ -64,7 +64,7 @@ The pages must be served over HTTP. Opening the files directly (`file://`) break
 ```sh
 npm ci              # once, for the linters
 npm run lint        # HTML, JavaScript and site checks
-npm test            # unit tests for the pure layout code (node --test)
+npm test            # unit tests for the pure layout and report-reading code (node --test)
 python3 -m http.server -d site 8000   # then open http://localhost:8000
 ```
 
