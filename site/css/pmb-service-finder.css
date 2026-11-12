@@ -1,0 +1,119 @@
+/* Layout: the same back-office sheet as the other tools. Two reports go in at the top, the service picker and three ruled counts sit under them, the missing and has-it lists follow. */
+:root {
+  --bg: #f1f5f4;
+  --surface: #ffffff;
+  --ink: #15211f;
+  --muted: #586966;
+  --line: #d3dcd9;
+  --accent: #0f5c55;
+  --accent-ink: #ffffff;
+  --accent-soft: #dfecea;
+  --warn: #7a4f00;
+  --warn-bg: #fbf0d6;
+  --warn-line: #e6cf94;
+  --ok: #1d6638;
+  --bad: #a02f28;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-label: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; display: flex; flex-direction: column; gap: 22px; }
+
+h1 { font-family: var(--font-label); font-weight: 600; font-size: 28px; line-height: 1.15; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-family: var(--font-label); font-weight: 600; font-size: 18px; margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 64ch; }
+.label { font-family: var(--font-label); font-weight: 600; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+
+button, .btn { font: inherit; font-weight: 500; cursor: pointer; border-radius: 4px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 6px 12px; }
+button:hover, .btn:hover { border-color: var(--accent); }
+button:disabled { cursor: default; opacity: 0.5; border-color: var(--line); }
+button:focus-visible, .btn:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn-small { font-size: 13px; padding: 3px 9px; }
+
+/* Reports in */
+.intake { background: var(--surface); border: 1px dashed var(--muted); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.intake.over { border-style: solid; border-color: var(--accent); background: var(--accent-soft); }
+.intake-top { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.intake-top p { margin: 0; min-width: 0; }
+.slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.slot { border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.slot .file { font-weight: 500; overflow-wrap: anywhere; }
+.slot.empty .file { color: var(--muted); font-weight: 400; }
+.slot .state { font-size: 13px; color: var(--muted); }
+.slot.ready { border-left: 3px solid var(--ok); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Notices */
+.notices { display: flex; flex-direction: column; gap: 8px; }
+.notices:empty { display: none; }
+.notice { border: 1px solid var(--warn-line); background: var(--warn-bg); color: var(--warn); border-radius: 4px; padding: 9px 12px; overflow-wrap: anywhere; }
+.notice.info { border-color: var(--line); background: var(--surface); color: var(--muted); }
+.notice.error { border-color: var(--bad); color: var(--bad); background: var(--surface); }
+.notice strong { font-weight: 600; }
+
+/* Service picker */
+.picker { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+select { font: inherit; font-weight: 500; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; min-width: min(100%, 280px); max-width: 100%; cursor: pointer; }
+select:hover { border-color: var(--accent); }
+select:disabled { cursor: default; opacity: 0.6; border-color: var(--line); }
+
+/* Three counts */
+.figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.figure { background: var(--surface); padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.figure .value { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 34px; line-height: 1.1; color: var(--accent); }
+.figure .value.pending { color: var(--muted); font-weight: 400; }
+.figure .sub { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.figure .sub:empty { display: none; }
+.summary-row { display: flex; flex-direction: column; gap: 4px; }
+.summary-row p { margin: 0; font-size: 13px; color: var(--muted); }
+.summary-row #summary { font-size: 15px; color: var(--ink); }
+/* The summary sentence is a live region, so it stays rendered while empty; hiding it would lose its first announcement. */
+#check-line:empty { display: none; }
+
+/* Lists */
+.ledger { display: flex; flex-direction: column; gap: 10px; }
+.ledger:empty { display: none; }
+.ledger-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+thead th { font-family: var(--font-label); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; white-space: nowrap; }
+td.box { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; width: 5.5em; }
+td.who, td.services { overflow-wrap: break-word; }
+td.who { min-width: 9em; }
+.svc { display: block; }
+.status.flag { display: inline-block; border: 1px solid var(--warn-line); background: var(--warn-bg); color: var(--warn); border-radius: 3px; padding: 0 6px; font-size: 13px; font-weight: 500; }
+.tag { font-size: 13px; color: var(--muted); }
+.empty-row td { color: var(--muted); }
+
+/* Five columns don't fit a phone, so each box becomes a short card: its number on the left, the rest stacked beside it. */
+@media (max-width: 600px) {
+  .scroll thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .scroll table, .scroll tbody { display: block; }
+  .scroll tr { display: grid; grid-template-columns: 3.4em minmax(0, 1fr); gap: 2px 10px; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+  .scroll tbody tr:last-child { border-bottom: 0; }
+  .scroll td { display: block; grid-column: 2; padding: 0; border: 0; min-width: 0; }
+  .scroll td.box { grid-column: 1; grid-row: 1 / span 4; width: auto; }
+  .scroll td.type, .scroll td.services { font-size: 13px; color: var(--muted); }
+  .scroll .empty-row td { grid-column: 1 / -1; }
+  .scroll td[data-label]::before { content: attr(data-label) ": "; font-family: var(--font-label); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .svc { display: inline; }
+  .svc:not(:last-child)::after { content: ", "; }
+}
+@media (max-width: 480px) { h1 { font-size: 24px; } .figure .value { font-size: 30px; } }
+@media print {
+  .intake, .lede, button[data-copy] { display: none !important; }
+  .scroll { overflow: visible; }
+  tr { break-inside: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.disclaimer { margin: 12px 0 0; font-size: 12px; color: var(--muted); max-width: 80ch; }
+.disclaimer a { color: inherit; }
