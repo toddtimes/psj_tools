@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="stylesheet" href="css/base.css">
+<title>PMB Service Finder</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="vendor/fonts/fonts.css">
+<link rel="stylesheet" href="css/pmb-service-finder.css">
+</head>
+<body>
+
+<main class="wrap">
+  <header>
+    <h1>PMB Service Finder</h1>
+    <p class="lede">Add a Mailbox Listing and a PMB Services Report, then pick a service. This lists the rented boxes that are missing it and the ones that have it.</p>
+  </header>
+
+  <section class="intake" id="intake" aria-label="Reports">
+    <div class="intake-top">
+      <p>Drop both PDFs here, in either order. They are read in your browser and are not uploaded.</p>
+      <label class="btn btn-primary" for="file-input" id="choose-label">Choose PDFs</label>
+      <input class="sr-only" type="file" id="file-input" accept="application/pdf,.pdf" multiple>
+    </div>
+    <div class="slots">
+      <div class="slot empty" id="slot-mailbox"></div>
+      <div class="slot empty" id="slot-services"></div>
+    </div>
+  </section>
+
+  <div class="notices" id="notices" aria-live="polite"></div>
+
+  <section class="stack" aria-label="Results">
+    <div class="picker">
+      <label class="label" for="service">Service</label>
+      <select id="service" disabled>
+        <option value="">Add both reports</option>
+      </select>
+    </div>
+    <div class="figures">
+      <div class="figure">
+        <span class="label">Missing it</span>
+        <span class="value" id="val-missing">—</span>
+        <span class="sub" id="sub-missing"></span>
+      </div>
+      <div class="figure">
+        <span class="label">Have it</span>
+        <span class="value" id="val-has">—</span>
+        <span class="sub" id="sub-has"></span>
+      </div>
+      <div class="figure">
+        <span class="label">Rented boxes</span>
+        <span class="value" id="val-rented">—</span>
+        <span class="sub" id="sub-rented"></span>
+      </div>
+    </div>
+    <div class="summary-row">
+      <p id="summary" aria-live="polite"></p>
+      <p id="check-line"></p>
+    </div>
+  </section>
+
+  <section class="ledger" id="ledger-missing"></section>
+  <section class="ledger" id="ledger-has"></section>
+
+  <p class="disclaimer">Provided free and as-is, with no warranty of any kind. These tools read PostalMate reports in your browser; always check the results against the original reports before relying on them for USPS, tax or other filings. <a href="./">All tools</a></p>
+</main>
+
+<script src="lib/pdf-reader.js"></script>
+<script src="lib/site.js"></script>
+<script src="js/pmb-service-finder.js"></script>
+
+</body>
+</html>
